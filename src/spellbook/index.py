@@ -158,14 +158,29 @@ def parse_document(doc_path: Path) -> Optional[ArchiveDoc]:
     if not frontmatter:
         return None
 
-    # Parse entities
+    # Parse entities - support both formats:
+    # Format A (Archivist): {person: [Sam], project: [spellbook]}
+    # Format B (structured): [{name: Sam, type: person}, ...]
     entities = []
-    for e in frontmatter.get("entities", []):
-        if isinstance(e, dict) and "name" in e and "type" in e:
-            try:
-                entities.append(EntityRef(name=e["name"], type=EntityType(e["type"])))
-            except ValueError:
-                pass
+    raw_entities = frontmatter.get("entities", [])
+
+    if isinstance(raw_entities, dict):
+        # Format A: nested dict with type keys
+        for entity_type, names in raw_entities.items():
+            if isinstance(names, list):
+                for name in names:
+                    try:
+                        entities.append(EntityRef(name=name, type=EntityType(entity_type)))
+                    except ValueError:
+                        pass  # Skip unknown entity types
+    elif isinstance(raw_entities, list):
+        # Format B: list of {name, type} dicts
+        for e in raw_entities:
+            if isinstance(e, dict) and "name" in e and "type" in e:
+                try:
+                    entities.append(EntityRef(name=e["name"], type=EntityType(e["type"])))
+                except ValueError:
+                    pass
 
     # Parse related docs
     related_docs = []
@@ -173,12 +188,28 @@ def parse_document(doc_path: Path) -> Optional[ArchiveDoc]:
         if isinstance(r, dict) and "id" in r:
             related_docs.append({"id": r["id"], "relationship": r.get("relationship", "related")})
 
+    # Get timestamp - accept both 'ts' and 'date' fields
+    ts = frontmatter.get("ts") or frontmatter.get("date")
+    if not ts:
+        return None
+
+    # Extract title from first heading if not in frontmatter
+    title = frontmatter.get("title")
+    if not title:
+        body = parts[2].strip()
+        for line in body.split("\n"):
+            if line.startswith("# "):
+                title = line[2:].strip()
+                break
+        if not title:
+            title = "Untitled"
+
     try:
         doc = ArchiveDoc(
             id=frontmatter.get("id", doc_path.stem),
-            ts=frontmatter.get("ts"),
+            ts=ts,
             type=DocType(frontmatter.get("type", "reference")),
-            title=frontmatter.get("title", "Untitled"),
+            title=title,
             summary=frontmatter.get("summary", ""),
             content=parts[2].strip(),
             entities=entities,
