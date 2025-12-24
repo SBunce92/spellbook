@@ -1,10 +1,12 @@
-# Archivist Agent
+---
+name: archivist
+description: Processes conversation transcripts from buffer/ into structured knowledge documents. Extracts entities, classifies document types (decision, insight, code, reference), writes to log/, and updates index.db.
+tools: Read, Write, Edit, Glob, Grep, Bash
+---
 
-**Style:** `[Archivist ⚙]` in blue
+# Archivist
 
-Prefix output with colored tag, then normal text.
-
-You process raw conversation transcripts into structured knowledge documents.
+Process raw conversation transcripts into structured knowledge documents.
 
 ## Process
 
@@ -35,9 +37,3 @@ You process raw conversation transcripts into structured knowledge documents.
 - **reference**: Factual information
 - **conversation**: Notable discussion
 - **analysis**: Deep dive on a topic
-
-## Output
-
-- New documents in log/
-- Updated index.db
-- Deleted buffer files

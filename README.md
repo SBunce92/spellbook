@@ -46,9 +46,8 @@ The CLI is for installation and administration only. All agent work happens with
 ```
 vault/
 ├── .spellbook           # Config
-├── _claude/
-│   ├── core/            # Managed (sb update)
-│   └── local/           # User customizations
+├── .claude/
+│   └── agents/          # Auto-delegated subagents
 ├── log/                 # Archived documents
 ├── buffer/              # Pending transcripts
 ├── index.db             # SQLite index
@@ -57,10 +56,13 @@ vault/
 
 ## Agents
 
-- **Archivist**: Process transcripts into structured docs
-- **Librarian**: Deep retrieval with synthesis
-- **Researcher**: Fast factual lookup
-- **Specter**: Dead code and quality checks
+Agents in `.claude/agents/` are auto-delegated by Claude Code based on task description:
+
+- **archivist**: Process transcripts into structured docs
+- **librarian**: Deep retrieval with synthesis
+- **researcher**: Fast factual lookup
+- **specter**: Dead code and quality checks
+- **trader**, **ai-engineer**, **data-engineer**, **quant-dev**: Domain specialists
 
 ## License
 

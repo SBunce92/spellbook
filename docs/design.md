@@ -45,35 +45,22 @@ spellbook/
 ├── pyproject.toml
 ├── README.md
 ├── docs/
-│   └── design.md                  # This document
-│
+│   └── design.md
 ├── src/
 │   └── spellbook/
 │       ├── __init__.py
-│       ├── cli.py                 # Click commands
-│       ├── installer.py           # Init/update logic
-│       ├── index.py               # SQLite operations
-│       ├── schema.py              # Pydantic models
-│       │
-│       └── assets/                # Files copied to vault on init/update
-│           ├── agents/
-│           │   ├── archivist.md
-│           │   ├── librarian.md
-│           │   ├── researcher.md
-│           │   ├── specter.md
-│           │   ├── trader.md
-│           │   ├── ai-engineer.md
-│           │   ├── data-engineer.md
-│           │   └── quant-dev.md
-│           ├── hooks/
-│           │   └── stop.sh
-│           ├── scripts/
-│           │   └── rebuild_index.py
+│       ├── cli.py
+│       ├── installer.py
+│       ├── index.py
+│       ├── schema.py
+│       └── assets/
+│           ├── .claude/
+│           │   ├── agents/       # Auto-delegated subagents
+│           │   ├── hooks/
+│           │   └── scripts/
 │           └── templates/
 │               └── CLAUDE.md.template
-│
 └── tests/
-    └── ...
 ```
 
 ### Installed Vault Structure
@@ -81,39 +68,24 @@ spellbook/
 ```
 vault/                             # Created by `sb init`
 ├── .spellbook                     # Version marker + config
-│
-├── _claude/
-│   ├── core/                      # MANAGED (sb update overwrites)
-│   │   ├── agents/
-│   │   │   ├── archivist.md
-│   │   │   ├── librarian.md
-│   │   │   ├── researcher.md
-│   │   │   ├── specter.md
-│   │   │   ├── trader.md
-│   │   │   ├── ai-engineer.md
-│   │   │   ├── data-engineer.md
-│   │   │   └── quant-dev.md
-│   │   ├── hooks/
-│   │   │   └── stop.sh
-│   │   └── scripts/
-│   │       ├── schema.py
-│   │       └── rebuild_index.py
-│   │
-│   └── local/                     # USER (sb update never touches)
-│       ├── agents/                # Custom agents
-│       └── hooks/                 # Custom hooks
-│
-├── log/                           # USER DATA - archived documents
+├── .claude/
+│   ├── agents/                    # Auto-delegated subagents (MANAGED)
+│   │   ├── archivist.md
+│   │   ├── librarian.md
+│   │   ├── researcher.md
+│   │   ├── specter.md
+│   │   ├── trader.md
+│   │   ├── ai-engineer.md
+│   │   ├── data-engineer.md
+│   │   └── quant-dev.md
+│   ├── hooks/
+│   └── scripts/
+├── log/                           # Archived documents (USER DATA)
 │   └── 2025-12-24/
-│       ├── 001.md
-│       └── ...
-│
-├── buffer/                        # USER DATA - pending transcripts
-│   └── 2025-12-24T14-30-00.json
-│
-├── index.db                       # DERIVED - SQLite index (rebuildable)
-│
-└── CLAUDE.md                      # USER - init creates, update preserves
+│       └── 001.md
+├── buffer/                        # Pending transcripts (USER DATA)
+├── index.db                       # SQLite index (DERIVED)
+└── CLAUDE.md                      # Project instructions (USER)
 ```
 
 ### Ownership Model
@@ -121,8 +93,7 @@ vault/                             # Created by `sb init`
 | Path | Owner | `sb update` Behavior |
 |------|-------|----------------------|
 | `.spellbook` | Spellbook | Updates version |
-| `_claude/core/` | Spellbook | Overwrites |
-| `_claude/local/` | User | Never touches |
+| `.claude/` | Spellbook | Overwrites |
 | `log/` | User | Never touches |
 | `buffer/` | User | Never touches |
 | `index.db` | Derived | Never touches |

@@ -16,11 +16,9 @@ SPELLBOOK_MARKER = ".spellbook"
 
 # Directories to create in new vaults
 VAULT_DIRS = [
-    "_claude/core/agents",
-    "_claude/core/hooks",
-    "_claude/core/scripts",
-    "_claude/local/agents",
-    "_claude/local/hooks",
+    ".claude/agents",
+    ".claude/hooks",
+    ".claude/scripts",
     "log",
     "buffer",
 ]
@@ -130,9 +128,7 @@ def update_vault(vault_path: Path) -> None:
 
     # Report preserved files
     console.print("\nPreserved:")
-    local_count = len(list((vault_path / "_claude/local").rglob("*")))
     log_count = len(list((vault_path / "log").rglob("*.md")))
-    console.print(f"  - _claude/local/* ({local_count} files)")
     console.print(f"  - log/* ({log_count} docs)")
     console.print("  - CLAUDE.md")
 
@@ -189,37 +185,33 @@ def _copy_managed_assets(
     updated = []
     new = []
 
-    # Map asset subdirs to vault destinations
-    mappings = [
-        ("agents", "_claude/core/agents"),
-        ("hooks", "_claude/core/hooks"),
-        ("scripts", "_claude/core/scripts"),
-    ]
+    # Copy .claude/ directory structure (agents, hooks, scripts)
+    src_claude = assets_path / ".claude"
+    if src_claude.exists():
+        for subdir in ["agents", "hooks", "scripts"]:
+            src_dir = src_claude / subdir
+            dest_dir = vault_path / ".claude" / subdir
 
-    for src_subdir, dest_subdir in mappings:
-        src_dir = assets_path / src_subdir
-        dest_dir = vault_path / dest_subdir
+            if not src_dir.exists():
+                continue
 
-        if not src_dir.exists():
-            continue
+            dest_dir.mkdir(parents=True, exist_ok=True)
 
-        dest_dir.mkdir(parents=True, exist_ok=True)
+            for src_file in src_dir.iterdir():
+                if src_file.is_file():
+                    dest_file = dest_dir / src_file.name
+                    was_existing = dest_file.exists()
 
-        for src_file in src_dir.iterdir():
-            if src_file.is_file():
-                dest_file = dest_dir / src_file.name
-                was_existing = dest_file.exists()
+                    shutil.copy2(src_file, dest_file)
 
-                shutil.copy2(src_file, dest_file)
-
-                if report:
-                    rel_path = f"{dest_subdir}/{src_file.name}"
-                    if was_existing:
-                        updated.append(rel_path)
+                    if report:
+                        rel_path = f".claude/{subdir}/{src_file.name}"
+                        if was_existing:
+                            updated.append(rel_path)
+                        else:
+                            new.append(rel_path)
                     else:
-                        new.append(rel_path)
-                else:
-                    console.print(f"  [green]\u2713[/green] {dest_subdir}/{src_file.name}")
+                        console.print(f"  [green]\u2713[/green] .claude/{subdir}/{src_file.name}")
 
     return updated, new
 
