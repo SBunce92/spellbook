@@ -139,7 +139,6 @@ sb init [path]              # Create new vault at path (default: current dir)
 sb update                   # Update managed files to latest version
 sb status                   # Show vault version, stats, health
 sb rebuild                  # Rebuild index.db from log documents
-sb agents                   # List available agents
 sb --version                # Show Spellbook version
 ```
 

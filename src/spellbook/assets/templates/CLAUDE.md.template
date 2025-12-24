@@ -9,7 +9,6 @@ Spellbook vault v{{version}}
 | `sb status` | Check vault status |
 | `sb update` | Update managed files |
 | `sb rebuild` | Rebuild index from logs |
-| `sb agents` | List available agents |
 
 ## Vault Structure
 

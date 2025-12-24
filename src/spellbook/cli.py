@@ -5,7 +5,6 @@ from pathlib import Path
 from rich.console import Console
 
 from . import __version__
-from .agents import list_agents
 
 console = Console()
 
@@ -66,12 +65,6 @@ def rebuild():
         raise SystemExit(1)
 
     rebuild_index(vault_path)
-
-
-@cli.command()
-def agents():
-    """List available agents."""
-    list_agents(console)
 
 
 if __name__ == "__main__":

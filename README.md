@@ -40,7 +40,6 @@ The CLI is for installation and administration only. All agent work happens with
 | `sb update` | Update managed files |
 | `sb status` | Show vault status |
 | `sb rebuild` | Rebuild index.db |
-| `sb agents` | List available agents |
 
 ## Vault Structure
 
