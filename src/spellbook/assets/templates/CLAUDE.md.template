@@ -16,21 +16,25 @@ Spellbook activates automatically when Claude runs from this directory.
 2. **Librarian** retrieves knowledge from `log/` + `index.db` on demand
 3. **Archivist** processes `buffer/` → `log/` when triggered
 
-## Agent Routing
+## Agent Routing (MANDATORY)
 
-**Automatically delegate to these agents when relevant:**
+**NEVER access vault data directly. ALWAYS delegate to agents:**
+
+- Do NOT use Read/Glob/Grep on `log/`, `buffer/`, or `index.db`
+- Do NOT manually query SQLite or read archived documents
+- ALWAYS use the Task tool with the appropriate agent below
 
 | Trigger | Agent | Purpose |
 |---------|-------|---------|
-| "what do we know about X" | **librarian** | Deep retrieval + synthesis |
-| "when did we discuss X" | **librarian** | Timeline queries |
-| "quick lookup on X" | **researcher** | Fast 2-3 sentence answer |
-| "archive the buffer" | **archivist** | Process buffer → log |
-| "audit", "dead code" | **specter** | Code quality scan |
-| Options/trading/Greeks | **trader** | Domain expertise |
-| ML/LLM/RAG questions | **ai-engineer** | Domain expertise |
-| Data pipelines/SQL | **data-engineer** | Domain expertise |
-| Numerical/stats | **quant-dev** | Domain expertise |
+| Vault queries, "what do we know" | **📚 Librarian** | Deep retrieval + synthesis |
+| Timeline, "when did we discuss" | **📚 Librarian** | Historical queries |
+| Quick fact lookup | **🔍 Researcher** | Fast 2-3 sentence answer |
+| "archive the buffer" | **📜 Archivist** | Process buffer → log |
+| "audit", "dead code" | **👻 Specter** | Code quality scan |
+| Options/trading/Greeks | **📈 Trader** | Domain expertise |
+| ML/LLM/RAG questions | **🤖 AI Engineer** | Domain expertise |
+| Data pipelines/SQL | **🗄️ Data Engineer** | Domain expertise |
+| Numerical/stats | **📊 Quant Dev** | Domain expertise |
 
 ## Vault Structure
 
@@ -74,13 +78,13 @@ entities:
 ## Agents
 
 **Core:**
-- **archivist** - Process buffer → log, extract entities
-- **librarian** - Deep retrieval, synthesize answers with citations
-- **researcher** - Fast factual lookup (2-3 sentences)
-- **specter** - Dead code audit, quality issues
+- **📜 Archivist** - Process buffer → log, extract entities
+- **📚 Librarian** - Deep retrieval, synthesize answers with citations
+- **🔍 Researcher** - Fast factual lookup (2-3 sentences)
+- **👻 Specter** - Dead code audit, quality issues
 
 **Domain:**
-- **trader** - Options, derivatives, Greeks, risk
-- **ai-engineer** - ML systems, LLM integration, RAG
-- **data-engineer** - Pipelines, ClickHouse, ETL
-- **quant-dev** - Numerical computing, statistics
+- **📈 Trader** - Options, derivatives, Greeks, risk
+- **🤖 AI Engineer** - ML systems, LLM integration, RAG
+- **🗄️ Data Engineer** - Pipelines, ClickHouse, ETL
+- **📊 Quant Dev** - Numerical computing, statistics
