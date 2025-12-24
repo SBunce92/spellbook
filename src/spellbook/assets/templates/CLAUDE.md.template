@@ -13,19 +13,21 @@ Spellbook activates automatically when Claude runs from this directory.
 ## How It Works
 
 1. **Stop hook** captures exchanges to `buffer/` automatically
-2. **General** orchestrates all tasks, delegating to specialists
+2. **🎯 General** orchestrates all tasks, delegating to specialists
 3. **Specialists** handle domain-specific work (retrieval, analysis, etc.)
-4. **Archivist** processes `buffer/` → `log/` to persist knowledge
+4. **📜 Archivist** processes `buffer/` → `log/` to persist knowledge
 
 ## Task Routing (MANDATORY)
 
-**Route ALL non-trivial tasks through the General orchestrator.**
+**Route ALL non-trivial tasks through the 🎯 General orchestrator.**
 
 ```
-Task(subagent_type="general-purpose", prompt="your task here")
+Task(subagent_type="🎯 General", prompt="your task here")
 ```
 
-General will:
+**CRITICAL: Always use icon-prefixed agent names.** Use `"📜 Archivist"` not `"archivist"`. The icons are part of the agent identity.
+
+🎯 General will:
 - Analyze the request
 - Delegate to appropriate specialists
 - Run parallel tasks when possible
@@ -41,10 +43,10 @@ General will:
 
 ## Archiving Protocol (MANDATORY)
 
-The stop hook captures exchanges automatically. General MUST invoke Archivist at the end of every substantive task:
+The stop hook captures exchanges automatically. 🎯 General MUST invoke 📜 Archivist at the end of every substantive task:
 
 1. Check buffer: `ls buffer/*.txt 2>/dev/null | wc -l`
-2. If count > 0: `Task(subagent_type="archivist", prompt="Process buffer")`
+2. If count > 0: `Task(subagent_type="📜 Archivist", prompt="Process buffer")`
 3. This is NON-NEGOTIABLE
 
 ## Vault Structure

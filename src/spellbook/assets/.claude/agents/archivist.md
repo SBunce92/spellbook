@@ -36,6 +36,12 @@ If content is trivial, ongoing, or needs more context:
 
 When you decide to write:
 
+### 0. Get Current Date (MANDATORY FIRST STEP)
+```bash
+date +%Y-%m-%d
+```
+**CRITICAL:** Always run this command first. Use the returned value for all dates. NEVER assume or guess the year - Claude's internal date can be wrong. The system date is the source of truth.
+
 ### 1. Read Buffer Files
 ```bash
 ls buffer/*.txt
@@ -66,7 +72,7 @@ For each knowledge unit, create a focused document:
 ```markdown
 ---
 type: decision|insight|code|reference
-date: YYYY-MM-DD
+date: [USE VALUE FROM date +%Y-%m-%d - NEVER GUESS]
 entities:
   person: [names]
   project: [projects]
@@ -83,7 +89,7 @@ Key points:
 - ...
 ```
 
-Write to `log/YYYY-MM-DD/NNN.md` (use next available number).
+Write to `log/[SYSTEM_DATE]/NNN.md` where SYSTEM_DATE is the value from step 0. Use next available number.
 
 ### 4. Update Index
 
