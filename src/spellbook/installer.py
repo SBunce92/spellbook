@@ -140,8 +140,7 @@ def update_vault(vault_path: Path, fetch: bool = True) -> None:
         console.print("[red]Error:[/red] Invalid vault (no .spellbook found)")
         raise SystemExit(1)
 
-    old_version = config.version
-    console.print(f"\n[bold]Spellbook[/bold] v{old_version}\n")
+    console.print(f"\n[bold]Spellbook[/bold] v{__version__}\n")
 
     # Step 1: Self-upgrade from GitHub
     if fetch:
