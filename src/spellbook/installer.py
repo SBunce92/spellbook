@@ -86,7 +86,7 @@ def init_vault(vault_path: Path, name: str) -> None:
     now = datetime.now()
     config = SpellbookConfig(
         version=__version__,
-        vault_name=name,
+        vault_dir=name,
         created=now,
         last_updated=now,
     )
@@ -96,7 +96,7 @@ def init_vault(vault_path: Path, name: str) -> None:
     console.print("\n[green]Done![/green] Vault initialized.\n")
     console.print("Next steps:")
     console.print(f"  cd {vault_path}")
-    console.print("  claude                    # Start Claude Code")
+    console.print("  sb cc                     # Launch Claude in vault")
     console.print("  sb status                 # Check vault status")
 
 
@@ -146,7 +146,7 @@ def get_vault_status(vault_path: Path) -> None:
     console.print("\u2500" * 22)
 
     console.print(f"Version:        {config.version}")
-    console.print(f"Name:           {config.vault_name}")
+    console.print(f"Directory:      {config.vault_dir}")
     console.print(f"Path:           {vault_path}")
 
     # Count buffer files
@@ -188,6 +188,25 @@ def _copy_managed_assets(
     # Copy .claude/ directory structure (agents, hooks, scripts)
     src_claude = assets_path / ".claude"
     if src_claude.exists():
+        # Ensure .claude directory exists
+        (vault_path / ".claude").mkdir(parents=True, exist_ok=True)
+
+        # Copy settings.json (hook registration)
+        src_settings = src_claude / "settings.json"
+        if src_settings.exists():
+            dest_settings = vault_path / ".claude" / "settings.json"
+            was_existing = dest_settings.exists()
+            shutil.copy2(src_settings, dest_settings)
+
+            if report:
+                if was_existing:
+                    updated.append(".claude/settings.json")
+                else:
+                    new.append(".claude/settings.json")
+            else:
+                console.print("  [green]\u2713[/green] .claude/settings.json")
+
+        # Copy subdirectories (agents, hooks, scripts)
         for subdir in ["agents", "hooks", "scripts"]:
             src_dir = src_claude / subdir
             dest_dir = vault_path / ".claude" / subdir
@@ -203,6 +222,10 @@ def _copy_managed_assets(
                     was_existing = dest_file.exists()
 
                     shutil.copy2(src_file, dest_file)
+
+                    # Make hook scripts executable
+                    if subdir == "hooks":
+                        dest_file.chmod(dest_file.stat().st_mode | 0o111)
 
                     if report:
                         rel_path = f".claude/{subdir}/{src_file.name}"
@@ -225,7 +248,7 @@ def _create_claude_md(vault_path: Path, name: str) -> None:
     template_path = get_assets_path() / "templates" / "CLAUDE.md.template"
     if template_path.exists():
         content = template_path.read_text()
-        content = content.replace("{{vault_name}}", name)
+        content = content.replace("{{vault_dir}}", name)
         content = content.replace("{{version}}", __version__)
     else:
         # Fallback if template doesn't exist

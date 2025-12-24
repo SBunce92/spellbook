@@ -103,6 +103,6 @@ class SpellbookConfig(BaseModel):
     """Stored in .spellbook file."""
 
     version: str
-    vault_name: str
+    vault_dir: str
     created: datetime
     last_updated: datetime
