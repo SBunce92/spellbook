@@ -32,33 +32,8 @@ index.db      # SQLite index (rebuildable)
 
 ## Agents
 
-When invoking subagents, use these prompts from `_claude/core/agents/`. Each agent has a distinct color for visual identification in output.
+Prompts in `_claude/core/agents/`:
 
-### Core Agents
+**Core:** Archivist (buffer processing), Librarian (deep retrieval), Researcher (fast lookup), Specter (dead code)
 
-| Agent | Color | Icon | Purpose |
-|-------|-------|------|---------|
-| **Archivist** | blue | ⚙ | Process buffer -> structured docs |
-| **Librarian** | green | 📚 | Deep retrieval + synthesis |
-| **Researcher** | cyan | 🔍 | Fast factual lookup |
-| **Specter** | red | 👻 | Dead code + quality checks |
-
-### Domain Agents
-
-| Agent | Color | Icon | Purpose |
-|-------|-------|------|---------|
-| **Trader** | yellow | 📈 | Options/risk analysis |
-| **AI Engineer** | magenta | 🤖 | ML systems |
-| **Data Engineer** | bright_blue | 💾 | Pipelines/databases |
-| **Quant Dev** | bright_green | Σ | Numerical computing |
-
-### Subagent Output Styling
-
-Prefix subagent output with colored `[Agent Icon]` tag, then normal text:
-
-```
-[Specter 👻]: Found 3 unused imports in src/utils.py
-[Librarian 📚]: Based on log/2025-12-24/003.md, the decision was...
-```
-
-Only the `[Agent Icon]` prefix is colored. Content remains default.
+**Domain:** Trader, AI Engineer, Data Engineer, Quant Dev
