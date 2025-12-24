@@ -2,16 +2,14 @@
 
 Spellbook vault v{{version}}
 
-## Quick Reference
+## CLI (installer only)
 
 | Command | Description |
 |---------|-------------|
 | `sb status` | Check vault status |
-| `sb archive` | Process buffer to log |
-| `sb recall <query>` | Deep retrieval from archive |
-| `sb quick <query>` | Fast factual lookup |
-| `sb haunt [path]` | Scan for dead code |
+| `sb update` | Update managed files |
 | `sb rebuild` | Rebuild index from logs |
+| `sb agents` | List available agents |
 
 ## Vault Structure
 

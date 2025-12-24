@@ -132,23 +132,15 @@ vault/                             # Created by `sb init`
 
 ## CLI Commands
 
-### Installation & Setup
+The CLI is purely for installation and administration. All agent invocation happens within Claude Code sessions.
 
 ```bash
 sb init [path]              # Create new vault at path (default: current dir)
 sb update                   # Update managed files to latest version
 sb status                   # Show vault version, stats, health
-sb version                  # Show Spellbook version
-```
-
-### Vault Operations
-
-```bash
-sb archive                  # Run Archivist: process buffer → docs
-sb recall <query>           # Run Librarian: deep retrieval + synthesis
-sb quick <query>            # Run Researcher: fast factual lookup
-sb haunt [path]             # Run Specter: dead code + bloat scan
 sb rebuild                  # Rebuild index.db from log documents
+sb agents                   # List available agents
+sb --version                # Show Spellbook version
 ```
 
 ### Example Flows
@@ -642,29 +634,27 @@ def rebuild_index(vault_path: Path):
 
 ## Implementation Plan
 
-### Phase 1: Core CLI
-- [ ] Project scaffolding (pyproject.toml, src layout)
-- [ ] Click CLI with `init`, `update`, `status`, `version`
-- [ ] Asset copying for managed files
-- [ ] `.spellbook` config file handling
+### Phase 1: Core CLI ✅
+- [x] Project scaffolding (pyproject.toml, src layout)
+- [x] Click CLI with `init`, `update`, `status`, `rebuild`, `agents`
+- [x] Asset copying for managed files
+- [x] `.spellbook` config file handling
 
-### Phase 2: Schema & Index
-- [ ] Pydantic models in `schema.py`
-- [ ] SQLite operations in `index.py`
-- [ ] `rebuild` command
-- [ ] Document parsing (YAML frontmatter + markdown)
+### Phase 2: Schema & Index ✅
+- [x] Pydantic models in `schema.py`
+- [x] SQLite operations in `index.py`
+- [x] `rebuild` command
+- [x] Document parsing (YAML frontmatter + markdown)
 
-### Phase 3: Subagent Integration
-- [ ] Agent prompt files in assets/
-- [ ] `archive`, `recall`, `quick`, `haunt` commands
-- [ ] Claude API integration for agent invocation
-- [ ] Stop hook implementation
+### Phase 3: Agent Prompts ✅
+- [x] Agent prompt files in assets/
+- [x] Agent color/icon styling
+- [x] Stop hook implementation
 
 ### Phase 4: Polish
 - [ ] Error handling and validation
-- [ ] Progress indicators and colors
 - [ ] Tests
-- [ ] Documentation and README
+- [x] Documentation and README
 
 ---
 

@@ -25,29 +25,22 @@ sb init ~/vaults/work
 # Check status
 sb status
 
-# Process buffer to archive
-sb archive
-
-# Query the archive
-sb recall "What was the decision about ClickHouse?"
-sb quick "Strike-PnL status"
-
-# Scan for dead code
-sb haunt ./src
+# Start Claude Code - agents are invoked automatically
+cd ~/vaults/work
+claude
 ```
 
-## Commands
+## CLI Commands
+
+The CLI is for installation and administration only. All agent work happens within Claude Code sessions.
 
 | Command | Description |
 |---------|-------------|
 | `sb init [path]` | Create new vault |
 | `sb update` | Update managed files |
 | `sb status` | Show vault status |
-| `sb archive` | Process buffer to log |
-| `sb recall <query>` | Deep retrieval |
-| `sb quick <query>` | Fast lookup |
-| `sb haunt [path]` | Dead code scan |
-| `sb rebuild` | Rebuild index |
+| `sb rebuild` | Rebuild index.db |
+| `sb agents` | List available agents |
 
 ## Vault Structure
 
