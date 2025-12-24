@@ -168,6 +168,10 @@ def update_vault(vault_path: Path, fetch: bool = True) -> None:
         for f in new:
             console.print(f"  [green]\u2713[/green] {f} (new)")
 
+    # Update CLAUDE.md from template
+    _update_claude_md(vault_path, config.vault_dir)
+    console.print("  [green]\u2713[/green] CLAUDE.md (updated)")
+
     # Update config
     config.version = __version__
     config.last_updated = datetime.now()
@@ -177,7 +181,6 @@ def update_vault(vault_path: Path, fetch: bool = True) -> None:
     console.print("\nPreserved:")
     log_count = len(list((vault_path / "log").rglob("*.md")))
     console.print(f"  - log/* ({log_count} docs)")
-    console.print("  - CLAUDE.md")
 
     console.print("\n[green]Done![/green]")
 
@@ -287,10 +290,18 @@ def _copy_managed_assets(
 
 
 def _create_claude_md(vault_path: Path, name: str) -> None:
-    """Create CLAUDE.md from template."""
+    """Create CLAUDE.md from template (only if it doesn't exist)."""
     claude_md_path = vault_path / "CLAUDE.md"
     if claude_md_path.exists():
         return
+
+    _update_claude_md(vault_path, name)
+    console.print("  [green]\u2713[/green] CLAUDE.md")
+
+
+def _update_claude_md(vault_path: Path, name: str) -> None:
+    """Update CLAUDE.md from template (always overwrites)."""
+    claude_md_path = vault_path / "CLAUDE.md"
 
     template_path = get_assets_path() / "templates" / "CLAUDE.md.template"
     if template_path.exists():
@@ -312,4 +323,3 @@ Spellbook vault v{__version__}
 """
 
     claude_md_path.write_text(content)
-    console.print("  [green]\u2713[/green] CLAUDE.md")
