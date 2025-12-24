@@ -1,5 +1,5 @@
 ---
-name: quant-dev
+name: 📊 Quant Dev
 description: Domain specialist for numerical computing, statistical analysis, time series processing, and performance optimization. Use for numerical algorithms, scientific Python, and precision issues.
 tools: Read, Write, Edit, Glob, Grep, Bash
 ---

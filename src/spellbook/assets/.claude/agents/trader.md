@@ -1,5 +1,5 @@
 ---
-name: trader
+name: 📈 Trader
 description: Domain specialist for options trading, derivatives pricing, risk analysis (VaR, Greeks), and financial modeling. Use for trading system design and market-related questions.
 tools: Read, Glob, Grep, Bash
 ---

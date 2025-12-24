@@ -2,6 +2,7 @@
 
 import sqlite3
 from pathlib import Path
+from typing import Optional
 
 import yaml
 from rich.console import Console
@@ -97,7 +98,7 @@ def find_entities_like(conn: sqlite3.Connection, pattern: str) -> list[str]:
     return [row[0] for row in cursor.fetchall()]
 
 
-def get_entity(conn: sqlite3.Connection, name: str) -> dict | None:
+def get_entity(conn: sqlite3.Connection, name: str) -> Optional[dict]:
     """Get entity details by name."""
     cursor = conn.execute(
         """
@@ -113,7 +114,7 @@ def get_entity(conn: sqlite3.Connection, name: str) -> dict | None:
 
 
 def get_recent_entities(
-    conn: sqlite3.Connection, limit: int = 20, entity_type: str | None = None
+    conn: sqlite3.Connection, limit: int = 20, entity_type: Optional[str] = None
 ) -> list[dict]:
     """Get recently mentioned entities."""
     if entity_type:
@@ -138,7 +139,7 @@ def get_recent_entities(
     return [dict(row) for row in cursor.fetchall()]
 
 
-def parse_document(doc_path: Path) -> ArchiveDoc | None:
+def parse_document(doc_path: Path) -> Optional[ArchiveDoc]:
     """Parse a markdown document with YAML frontmatter."""
     content = doc_path.read_text()
 

@@ -2,6 +2,8 @@
 
 import click
 from pathlib import Path
+from typing import Optional
+
 from rich.console import Console
 
 from . import __version__
@@ -19,7 +21,7 @@ def cli():
 @cli.command()
 @click.option("--name", "-n", prompt="Vault directory", help="Directory name for this vault")
 @click.option("--path", "-p", type=click.Path(), default=None, help="Parent directory (defaults to cwd)")
-def init(name: str, path: str | None):
+def init(name: str, path: Optional[str]):
     """Initialize a new Spellbook vault.
 
     Creates a directory with the vault name and initializes inside it.

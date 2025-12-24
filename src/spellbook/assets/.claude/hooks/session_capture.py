@@ -20,11 +20,12 @@ import json
 import sys
 from pathlib import Path
 from datetime import datetime
+from typing import Optional
 
 BUFFER_THRESHOLD = 5  # Suggest archivist after this many buffer files
 
 
-def find_vault_root(start_path: Path) -> Path | None:
+def find_vault_root(start_path: Path) -> Optional[Path]:
     """Find vault root by looking for .spellbook marker."""
     current = start_path.resolve()
     while current != current.parent:

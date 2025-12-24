@@ -1,5 +1,5 @@
 ---
-name: ai-engineer
+name: 🤖 AI Engineer
 description: Domain specialist for ML systems, LLM integration, RAG architectures, embedding systems, and AI infrastructure. Use for Claude API integration, prompt engineering, and ML pipelines.
 tools: Read, Write, Edit, Glob, Grep, Bash
 ---

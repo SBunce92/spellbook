@@ -1,8 +1,10 @@
 """Spellbook vault installation and management."""
 
 import shutil
+import subprocess
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 import yaml
 from rich.console import Console
@@ -11,6 +13,8 @@ from . import __version__
 from .schema import SpellbookConfig
 
 console = Console()
+
+GITHUB_REPO = "https://github.com/SBunce92/spellbook.git"
 
 SPELLBOOK_MARKER = ".spellbook"
 
@@ -29,7 +33,7 @@ def get_assets_path() -> Path:
     return Path(__file__).parent / "assets"
 
 
-def find_vault_root(start_path: Path) -> Path | None:
+def find_vault_root(start_path: Path) -> Optional[Path]:
     """Find vault root by looking for .spellbook marker."""
     current = start_path.resolve()
     while current != current.parent:
@@ -39,7 +43,7 @@ def find_vault_root(start_path: Path) -> Path | None:
     return None
 
 
-def read_config(vault_path: Path) -> SpellbookConfig | None:
+def read_config(vault_path: Path) -> Optional[SpellbookConfig]:
     """Read vault configuration from .spellbook file."""
     config_path = vault_path / SPELLBOOK_MARKER
     if not config_path.exists():
@@ -100,6 +104,33 @@ def init_vault(vault_path: Path, name: str) -> None:
     console.print("  sb status                 # Check vault status")
 
 
+def _self_upgrade() -> bool:
+    """Upgrade spellbook from GitHub. Returns True if successful."""
+    if shutil.which("uv"):
+        console.print("[dim]Using uv to upgrade...[/dim]")
+        result = subprocess.run(
+            ["uv", "tool", "install", "--reinstall", f"git+{GITHUB_REPO}"],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            return True
+        console.print(f"[yellow]uv failed:[/yellow] {result.stderr.strip()}")
+
+    if shutil.which("pip"):
+        console.print("[dim]Falling back to pip...[/dim]")
+        result = subprocess.run(
+            ["pip", "install", "--upgrade", f"git+{GITHUB_REPO}"],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            return True
+        console.print(f"[yellow]pip failed:[/yellow] {result.stderr.strip()}")
+
+    return False
+
+
 def update_vault(vault_path: Path) -> None:
     """Update managed files in existing vault."""
     config = read_config(vault_path)
@@ -108,9 +139,19 @@ def update_vault(vault_path: Path) -> None:
         raise SystemExit(1)
 
     old_version = config.version
-    console.print(f"\n[bold]Spellbook v{old_version} \u2192 v{__version__}[/bold]\n")
+    console.print(f"\n[bold]Spellbook[/bold] v{old_version}\n")
 
-    console.print("Updating managed files...")
+    # Step 1: Self-upgrade from GitHub
+    console.print("Fetching latest from GitHub...")
+    if _self_upgrade():
+        # Re-import to get new version after upgrade
+        # Note: This won't work in the same process, but the assets will be updated
+        console.print("[green]✓[/green] Package upgraded")
+    else:
+        console.print("[yellow]⚠[/yellow] Could not upgrade package (continuing with local assets)")
+
+    # Step 2: Copy assets to vault
+    console.print("\nUpdating vault files...")
 
     # Copy managed assets (overwrites _claude/core/)
     assets_path = get_assets_path()

@@ -4,6 +4,7 @@
 import sqlite3
 import sys
 from pathlib import Path
+from typing import Optional
 
 import yaml
 
@@ -30,7 +31,7 @@ CREATE INDEX IF NOT EXISTS idx_entities_last ON entities(last_mentioned DESC);
 """
 
 
-def parse_frontmatter(content: str) -> dict | None:
+def parse_frontmatter(content: str) -> Optional[dict]:
     """Extract YAML frontmatter from markdown."""
     if not content.startswith("---"):
         return None

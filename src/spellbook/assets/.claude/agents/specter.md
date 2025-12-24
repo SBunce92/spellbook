@@ -1,5 +1,5 @@
 ---
-name: specter
+name: 👻 Specter
 description: Hunts dead code, bloat, and code quality issues. Runs ruff checks, identifies unused imports/functions, orphaned files, and diff bloat. Use for code cleanup and quality audits.
 tools: Read, Glob, Grep, Bash
 ---
@@ -41,31 +41,6 @@ Hunt dead code, bloat, and code quality issues in codebases.
 3. Build reference graph for unused symbols
 4. Cross-reference tool output with manual analysis
 5. Report findings with confidence levels
-
-## Output Format
-
-```markdown
-## Code Quality
-
-### Ruff Issues
-- `src/api/handlers.py:45` - F401 unused import
-- `src/models/user.py:23` - E501 line too long
-
-### Build Status
-- uv build: OK / FAILED (reason)
-
-## Dead Code
-
-### High Confidence (safe to delete)
-- `src/utils/old_helper.py` - No imports found
-- `src/models/user.py:45-60` - Function `legacy_format()` unused
-
-### Needs Verification
-- `src/models/user.py:23` - `validate_legacy()` only used in tests
-
-## Diff Bloat
-- Lines 45-60 duplicate logic from `src/utils/helpers.py:12-27`
-```
 
 ## Guidelines
 

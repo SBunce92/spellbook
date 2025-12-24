@@ -1,5 +1,5 @@
 ---
-name: data-engineer
+name: 🗄️ Data Engineer
 description: Domain specialist for data pipelines, ClickHouse optimization, ETL/ELT patterns, and database design. Use for query optimization, schema design, and data quality issues.
 tools: Read, Write, Edit, Glob, Grep, Bash
 ---

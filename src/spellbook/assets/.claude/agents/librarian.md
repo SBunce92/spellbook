@@ -1,5 +1,5 @@
 ---
-name: librarian
+name: 📚 Librarian
 description: Deep retrieval and synthesis from the knowledge archive. Use proactively when user asks about past discussions, decisions, people, projects, or any "what do we know about X" queries. Queries index.db and reads documents from log/.
 tools: Read, Glob, Grep, Bash
 ---
@@ -53,20 +53,6 @@ entities:
 
 Use Glob to find documents: `log/**/*.md`
 Use Grep to search content: `grep -r "keyword" log/`
-
-## Response Format
-
-Always cite your sources:
-
-> Based on your discussion on 2025-12-24 ([log/2025-12-24/003.md](log/2025-12-24/003.md)):
-> You decided to use ReplacingMergeTree because...
-
-For multiple sources:
-
-> This topic appears in several discussions:
-> 1. **2025-12-20** - Initial decision to use ClickHouse ([log/2025-12-20/001.md])
-> 2. **2025-12-22** - Schema refinement with Felix ([log/2025-12-22/002.md])
-> 3. **2025-12-24** - Performance optimization ([log/2025-12-24/001.md])
 
 ## Guidelines
 
