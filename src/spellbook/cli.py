@@ -34,7 +34,8 @@ def init(name: str, path: Optional[str]):
 
 
 @cli.command()
-def update():
+@click.option("--no-fetch", is_flag=True, hidden=True, help="Skip package upgrade (internal)")
+def update(no_fetch: bool):
     """Update managed files to latest version."""
     from .installer import update_vault, find_vault_root
 
@@ -43,7 +44,7 @@ def update():
         console.print("[red]Error:[/red] Not in a Spellbook vault")
         raise SystemExit(1)
 
-    update_vault(vault_path)
+    update_vault(vault_path, fetch=not no_fetch)
 
 
 @cli.command()

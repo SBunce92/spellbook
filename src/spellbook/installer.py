@@ -1,7 +1,9 @@
 """Spellbook vault installation and management."""
 
+import os
 import shutil
 import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -131,7 +133,7 @@ def _self_upgrade() -> bool:
     return False
 
 
-def update_vault(vault_path: Path) -> None:
+def update_vault(vault_path: Path, fetch: bool = True) -> None:
     """Update managed files in existing vault."""
     config = read_config(vault_path)
     if not config:
@@ -142,16 +144,21 @@ def update_vault(vault_path: Path) -> None:
     console.print(f"\n[bold]Spellbook[/bold] v{old_version}\n")
 
     # Step 1: Self-upgrade from GitHub
-    console.print("Fetching latest from GitHub...")
-    if _self_upgrade():
-        # Re-import to get new version after upgrade
-        # Note: This won't work in the same process, but the assets will be updated
-        console.print("[green]✓[/green] Package upgraded")
-    else:
+    if fetch:
+        console.print("Fetching latest from GitHub...")
+        if _self_upgrade():
+            console.print("[green]✓[/green] Package upgraded, restarting...\n")
+            # Re-exec so new code runs the asset sync
+            os.execv(
+                sys.executable,
+                [sys.executable, "-m", "spellbook.cli", "update", "--no-fetch"],
+            )
+            return  # Never reached
+
         console.print("[yellow]⚠[/yellow] Could not upgrade package (continuing with local assets)")
 
     # Step 2: Copy assets to vault
-    console.print("\nUpdating vault files...")
+    console.print("Syncing vault files...")
 
     # Copy managed assets (overwrites _claude/core/)
     assets_path = get_assets_path()
