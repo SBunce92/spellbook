@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "spellbook-vault"
-version = "0.1.6"
+dynamic = ["version"]
 description = "Personal knowledge vault for Claude Code with subagentic workflows"
 readme = "README.md"
 license = "MIT"
@@ -42,6 +42,9 @@ sb = "spellbook.cli:cli"
 Homepage = "https://github.com/SBunce92/spellbook"
 Documentation = "https://github.com/SBunce92/spellbook/docs"
 Repository = "https://github.com/SBunce92/spellbook"
+
+[tool.hatch.version]
+path = "src/spellbook/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/spellbook"]
