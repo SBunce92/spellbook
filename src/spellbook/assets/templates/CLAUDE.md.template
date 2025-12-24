@@ -1,0 +1,67 @@
+# {{vault_name}}
+
+Spellbook vault v{{version}}
+
+## Quick Reference
+
+| Command | Description |
+|---------|-------------|
+| `sb status` | Check vault status |
+| `sb archive` | Process buffer to log |
+| `sb recall <query>` | Deep retrieval from archive |
+| `sb quick <query>` | Fast factual lookup |
+| `sb haunt [path]` | Scan for dead code |
+| `sb rebuild` | Rebuild index from logs |
+
+## Vault Structure
+
+```
+_claude/
+  core/       # Managed by Spellbook (sb update overwrites)
+  local/      # Your customizations (never touched)
+log/          # Archived documents (source of truth)
+buffer/       # Pending transcripts
+index.db      # SQLite index (rebuildable)
+```
+
+## Entity Types
+
+- **project**: Business initiatives
+- **person**: Individuals
+- **tool**: Software and services
+- **repo**: Code repositories and subpaths
+- **concept**: Ideas and patterns
+- **org**: Organizations
+
+## Agents
+
+When invoking subagents, use these prompts from `_claude/core/agents/`. Each agent has a distinct color for visual identification in output.
+
+### Core Agents
+
+| Agent | Color | Icon | Purpose |
+|-------|-------|------|---------|
+| **Archivist** | blue | ⚙ | Process buffer -> structured docs |
+| **Librarian** | green | 📚 | Deep retrieval + synthesis |
+| **Researcher** | cyan | 🔍 | Fast factual lookup |
+| **Specter** | red | 👻 | Dead code + quality checks |
+
+### Domain Agents
+
+| Agent | Color | Icon | Purpose |
+|-------|-------|------|---------|
+| **Trader** | yellow | 📈 | Options/risk analysis |
+| **AI Engineer** | magenta | 🤖 | ML systems |
+| **Data Engineer** | bright_blue | 💾 | Pipelines/databases |
+| **Quant Dev** | bright_green | Σ | Numerical computing |
+
+### Subagent Output Styling
+
+Prefix subagent output with colored `[Agent Icon]` tag, then normal text:
+
+```
+[Specter 👻]: Found 3 unused imports in src/utils.py
+[Librarian 📚]: Based on log/2025-12-24/003.md, the decision was...
+```
+
+Only the `[Agent Icon]` prefix is colored. Content remains default.
