@@ -201,7 +201,7 @@ def get_vault_status(vault_path: Path) -> None:
 
     # Count buffer files
     buffer_path = vault_path / "buffer"
-    buffer_count = len(list(buffer_path.glob("*.json"))) if buffer_path.exists() else 0
+    buffer_count = len(list(buffer_path.glob("*.txt"))) if buffer_path.exists() else 0
     console.print(f"Buffer:         {buffer_count} pending")
 
     # Count docs and entities

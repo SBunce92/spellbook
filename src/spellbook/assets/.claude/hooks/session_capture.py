@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 """
-Stop hook: Capture session to buffer, suggest archivist if buffer is large.
+Stop hook: Capture exchange delta to buffer as slim text.
 
 Flow:
-1. Read transcript from transcript_path
-2. Write to buffer/ as JSON
-3. Count buffer files
-4. If > threshold, return message suggesting archivist
+1. Load last captured timestamp from buffer/.state
+2. Extract only NEW messages (after last timestamp)
+3. Write delta as plain text to buffer/{timestamp}.txt
+4. Update .state with new timestamp
+
+Buffer format is minimal:
+    USER: message text
+
+    AGENT: response text
 
 Receives JSON on stdin:
 {
@@ -35,36 +40,88 @@ def find_vault_root(start_path: Path) -> Optional[Path]:
     return None
 
 
-def get_transcript_summary(transcript_path: str) -> dict:
-    """Extract summary info from transcript."""
+def load_state(buffer_dir: Path) -> dict:
+    """Load capture state."""
+    state_file = buffer_dir / ".state"
+    if state_file.exists():
+        try:
+            return json.loads(state_file.read_text())
+        except (json.JSONDecodeError, IOError):
+            pass
+    return {"last_captured_ts": None}
+
+
+def save_state(buffer_dir: Path, state: dict):
+    """Save capture state."""
+    state_file = buffer_dir / ".state"
+    state_file.write_text(json.dumps(state, indent=2))
+
+
+def extract_text_content(content) -> str:
+    """Extract just the text from message content."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        texts = []
+        for block in content:
+            if isinstance(block, dict):
+                if block.get("type") == "text":
+                    texts.append(block.get("text", ""))
+                # Skip tool_use, tool_result - just want human-readable text
+            elif isinstance(block, str):
+                texts.append(block)
+        return "\n".join(texts)
+    return ""
+
+
+def extract_delta(transcript_path: str, last_ts: Optional[str]) -> tuple[str, str, int]:
+    """
+    Extract messages newer than last_ts as simple text.
+    Returns (text_content, latest_ts, message_count).
+    Format: "USER: ...\n\nAGENT: ...\n\n..."
+    """
+    lines = []
+    latest_ts = last_ts
+    message_count = 0
+
     try:
         with open(transcript_path, "r") as f:
-            lines = f.readlines()
+            for line in f:
+                try:
+                    entry = json.loads(line)
+                    entry_ts = entry.get("timestamp")
 
-        message_count = 0
-        tool_uses = set()
+                    if not entry_ts:
+                        continue
+                    if last_ts and entry_ts <= last_ts:
+                        continue
 
-        for line in lines:
-            try:
-                entry = json.loads(line)
-                if entry.get("role") in ("user", "assistant"):
+                    if not latest_ts or entry_ts > latest_ts:
+                        latest_ts = entry_ts
+
+                    # Handle Claude Code transcript format
+                    entry_type = entry.get("type", "")
+                    if entry_type not in ("user", "assistant"):
+                        continue
+
+                    message = entry.get("message", {})
+                    content = message.get("content", [])
+                    text = extract_text_content(content)
+
+                    if not text.strip():
+                        continue
+
+                    # Simple format: USER or AGENT prefix
+                    prefix = "USER" if entry_type == "user" else "AGENT"
+                    lines.append(f"{prefix}: {text.strip()}")
                     message_count += 1
-                # Count tool uses from content blocks
-                content = entry.get("content", [])
-                if isinstance(content, list):
-                    for block in content:
-                        if block.get("type") == "tool_use":
-                            tool_uses.add(block.get("name", "unknown"))
-            except json.JSONDecodeError:
-                continue
 
-        return {
-            "message_count": message_count,
-            "tool_uses": list(tool_uses),
-            "line_count": len(lines),
-        }
+                except json.JSONDecodeError:
+                    continue
     except (FileNotFoundError, IOError):
-        return {"message_count": 0, "tool_uses": [], "line_count": 0}
+        pass
+
+    return "\n\n".join(lines), latest_ts, message_count
 
 
 def main():
@@ -76,12 +133,10 @@ def main():
 
     cwd = Path(hook_input.get("cwd", "."))
     transcript_path = hook_input.get("transcript_path", "")
-    session_id = hook_input.get("session_id", "unknown")
 
     # Find vault root
     vault = find_vault_root(cwd)
     if not vault:
-        # Not in a vault, skip silently
         print(json.dumps({"continue": True}))
         return
 
@@ -90,50 +145,41 @@ def main():
         print(json.dumps({"continue": True}))
         return
 
-    # Get transcript info
-    summary = get_transcript_summary(transcript_path)
-
-    # Skip trivial sessions (< 4 messages)
-    if summary["message_count"] < 4:
-        print(json.dumps({"continue": True}))
-        return
-
     # Ensure buffer directory exists
     buffer_dir = vault / "buffer"
     buffer_dir.mkdir(exist_ok=True)
 
-    # Write to buffer
-    ts = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%SZ")
-    buffer_file = buffer_dir / f"{ts}.json"
+    # Load state
+    state = load_state(buffer_dir)
 
-    buffer_entry = {
-        "ts": ts,
-        "session_id": session_id,
-        "cwd": str(cwd),
-        "transcript_path": transcript_path,
-        "summary": summary,
-    }
+    # Extract delta as simple text
+    text_content, latest_ts, message_count = extract_delta(
+        transcript_path,
+        state.get("last_captured_ts")
+    )
 
-    # Copy transcript content
-    try:
-        with open(transcript_path, "r") as f:
-            buffer_entry["transcript"] = f.read()
-    except IOError:
-        buffer_entry["transcript"] = ""
+    # Skip if no new content or trivial (< 2 messages)
+    if not text_content or message_count < 2:
+        print(json.dumps({"continue": True}))
+        return
 
-    with open(buffer_file, "w") as f:
-        json.dump(buffer_entry, f, indent=2)
+    # Write delta as plain text file
+    ts_filename = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%SZ")
+    buffer_file = buffer_dir / f"{ts_filename}.txt"
+    buffer_file.write_text(text_content)
 
-    # Count buffer files
-    buffer_count = len(list(buffer_dir.glob("*.json")))
+    # Update state
+    state["last_captured_ts"] = latest_ts
+    save_state(buffer_dir, state)
 
-    # Build response
+    # Count buffer files and optionally remind about archiving
+    buffer_count = len(list(buffer_dir.glob("*.txt")))
+
     response = {"continue": True}
-
     if buffer_count >= BUFFER_THRESHOLD:
         response["systemMessage"] = (
-            f"[Spellbook] Buffer has {buffer_count} sessions pending. "
-            f"Run the archivist agent to process them into the knowledge base."
+            f"[Spellbook] {buffer_count} buffer files pending. "
+            f"Consider archiving via General → Archivist."
         )
 
     print(json.dumps(response))

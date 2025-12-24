@@ -12,29 +12,40 @@ Spellbook activates automatically when Claude runs from this directory.
 
 ## How It Works
 
-1. **Stop hook** captures sessions to `buffer/` automatically
-2. **Librarian** retrieves knowledge from `log/` + `index.db` on demand
-3. **Archivist** processes `buffer/` → `log/` when triggered
+1. **Stop hook** captures exchanges to `buffer/` automatically
+2. **General** orchestrates all tasks, delegating to specialists
+3. **Specialists** handle domain-specific work (retrieval, analysis, etc.)
+4. **Archivist** processes `buffer/` → `log/` to persist knowledge
 
-## Agent Routing (MANDATORY)
+## Task Routing (MANDATORY)
 
-**NEVER access vault data directly. ALWAYS delegate to agents:**
+**Route ALL non-trivial tasks through the General orchestrator.**
 
-- Do NOT use Read/Glob/Grep on `log/`, `buffer/`, or `index.db`
-- Do NOT manually query SQLite or read archived documents
-- ALWAYS use the Task tool with the appropriate agent below
+```
+Task(subagent_type="general-purpose", prompt="your task here")
+```
 
-| Trigger | Agent | Purpose |
-|---------|-------|---------|
-| Vault queries, "what do we know" | **📚 Librarian** | Deep retrieval + synthesis |
-| Timeline, "when did we discuss" | **📚 Librarian** | Historical queries |
-| Quick fact lookup | **🔍 Researcher** | Fast 2-3 sentence answer |
-| "archive the buffer" | **📜 Archivist** | Process buffer → log |
-| "audit", "dead code" | **👻 Specter** | Code quality scan |
-| Options/trading/Greeks | **📈 Trader** | Domain expertise |
-| ML/LLM/RAG questions | **🤖 AI Engineer** | Domain expertise |
-| Data pipelines/SQL | **🗄️ Data Engineer** | Domain expertise |
-| Numerical/stats | **📊 Quant Dev** | Domain expertise |
+General will:
+- Analyze the request
+- Delegate to appropriate specialists
+- Run parallel tasks when possible
+- Synthesize results
+- **Ensure archiving happens** (checks buffer, invokes Archivist)
+
+**Do NOT:**
+- Directly invoke specialists (Librarian, Trader, etc.) - let General route
+- Access vault data directly (log/, buffer/, index.db) - agents handle this
+- Skip the orchestration layer for complex tasks
+
+**Exception:** Trivial interactions (greetings, simple clarifications) need no agent.
+
+## Archiving Protocol (MANDATORY)
+
+The stop hook captures exchanges automatically. General MUST invoke Archivist at the end of every substantive task:
+
+1. Check buffer: `ls buffer/*.txt 2>/dev/null | wc -l`
+2. If count > 0: `Task(subagent_type="archivist", prompt="Process buffer")`
+3. This is NON-NEGOTIABLE
 
 ## Vault Structure
 
@@ -45,7 +56,7 @@ Spellbook activates automatically when Claude runs from this directory.
   hooks/         # Hook scripts
   scripts/       # Utility scripts
 log/             # Archived documents (source of truth)
-buffer/          # Pending session transcripts
+buffer/          # Pending exchange captures
 index.db         # SQLite entity index (rebuildable)
 ```
 
@@ -69,13 +80,14 @@ entities:
   person: [Samuel Bunce]
   project: [spellbook]
   tool: [Claude Code]
-  repo: [sb-vault]
   concept: [knowledge graphs]
-  org: [Anthropic]
 ---
 ```
 
 ## Agents
+
+**Orchestrator:**
+- **🎯 General** - Central coordinator, delegates to specialists, ensures archiving
 
 **Core:**
 - **📜 Archivist** - Process buffer → log, extract entities
