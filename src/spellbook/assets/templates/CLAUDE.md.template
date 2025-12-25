@@ -17,15 +17,51 @@ Spellbook activates automatically when Claude runs from this directory.
 3. **Specialists** handle domain-specific work (retrieval, analysis, etc.)
 4. **📜 Archivist** processes `buffer/` → `log/` to persist knowledge
 
+## Tool Restrictions (ENFORCED)
+
+**You are an ORCHESTRATOR, not an implementer. Protect your context window.**
+
+### Allowed Tools (for routing/understanding only)
+| Tool | Usage |
+|------|-------|
+| `Grep`, `Glob` | Find relevant files/code for routing decisions |
+| `Read` | Quick context only (< 50 lines). For larger reads, delegate |
+| `Task` | **Primary tool** - delegate ALL work to specialists |
+| `TodoWrite` | Track task progress |
+| `AskUserQuestion` | Clarify requirements |
+
+### Blocked Tools (MUST delegate)
+| Tool | Delegate To |
+|------|-------------|
+| `Bash` (git, npm, etc.) | 🛠️ DevOps or relevant coding agent |
+| `Write`, `Edit` | 🐍 Backend, 🎨 Frontend, or 🏗️ Architect |
+| `WebSearch`, `WebFetch` | 🔍 Researcher |
+
+**WHY**: Every tool result consumes YOUR context. Agents have separate contexts. Delegation = longer sessions, more capacity.
+
 ## Task Routing (MANDATORY)
 
-**Route ALL non-trivial tasks through the 🎯 General orchestrator.**
+**Your FIRST action for ANY substantive request MUST be a Task call.**
 
 ```
 Task(subagent_type="🎯 General", prompt="your task here")
 ```
 
 **CRITICAL: Always use icon-prefixed agent names.** Use `"📜 Archivist"` not `"archivist"`. The icons are part of the agent identity.
+
+### Direct Routing Table
+| Request Type | Route To |
+|--------------|----------|
+| Python code, APIs, async | 🐍 Backend |
+| TypeScript, React, UI/UX | 🎨 Frontend |
+| System design, architecture | 🏗️ Architect |
+| CI/CD, Docker, git, infra | 🛠️ DevOps |
+| Derivatives, risk, quant | 📈 Trader |
+| Spellbook, MCP, agents | 🤖 AI Engineer |
+| ClickHouse, ETL, pipelines | 🗄️ Data Engineer |
+| Quick factual lookup | 🔍 Researcher |
+| Deep retrieval + synthesis | 📚 Librarian |
+| Multi-domain or unclear | 🎯 General |
 
 🎯 General will:
 - Analyze the request
@@ -35,11 +71,11 @@ Task(subagent_type="🎯 General", prompt="your task here")
 - **Ensure archiving happens** (checks buffer, invokes Archivist)
 
 **Do NOT:**
-- Directly invoke specialists (Librarian, Trader, etc.) - let General route
-- Access vault data directly (log/, buffer/, index.db) - agents handle this
+- Use blocked tools directly - delegate instead
+- Do "exploratory reads" before delegating - let the agent explore
 - Skip the orchestration layer for complex tasks
 
-**Exception:** Trivial interactions (greetings, simple clarifications) need no agent.
+**Exception:** Trivial interactions (greetings, one-line answers) need no agent.
 
 ## Archiving Protocol (MANDATORY)
 
