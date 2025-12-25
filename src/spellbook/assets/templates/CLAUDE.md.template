@@ -13,8 +13,8 @@ Spellbook activates automatically when Claude runs from this directory.
 ## How It Works
 
 1. **Stop hook** captures exchanges to `buffer/` automatically
-2. **🎯 General** orchestrates all tasks, delegating to specialists
-3. **Specialists** handle domain-specific work (retrieval, analysis, etc.)
+2. **Main Claude** orchestrates tasks, delegating to specialists
+3. **Specialists** handle domain-specific work (retrieval, analysis, coding, planning)
 4. **📜 Archivist** processes `buffer/` → `log/` to persist knowledge
 
 ## Tool Restrictions (ENFORCED)
@@ -43,10 +43,6 @@ Spellbook activates automatically when Claude runs from this directory.
 
 **Your FIRST action for ANY substantive request MUST be a Task call.**
 
-```
-Task(subagent_type="🎯 General", prompt="your task here")
-```
-
 **CRITICAL: Always use icon-prefixed agent names.** Use `"📜 Archivist"` not `"archivist"`. The icons are part of the agent identity.
 
 ### Direct Routing Table
@@ -55,31 +51,32 @@ Task(subagent_type="🎯 General", prompt="your task here")
 | Python code, APIs, async | 🐍 Backend |
 | TypeScript, React, UI/UX | 🎨 Frontend |
 | System design, architecture | 🏗️ Architect |
+| Complex planning, multi-step coordination | 🏗️ Architect |
 | CI/CD, Docker, git, infra | 🛠️ DevOps |
 | Derivatives, risk, quant | 📈 Trader |
 | Spellbook, MCP, agents | 🤖 AI Engineer |
 | ClickHouse, ETL, pipelines | 🗄️ Data Engineer |
-| Quick factual lookup | 🔍 Researcher |
 | Deep retrieval + synthesis | 📚 Librarian |
-| Multi-domain or unclear | 🎯 General |
+| Quick factual lookup | 🔍 Researcher |
 
-🎯 General will:
-- Analyze the request
+🏗️ Architect will:
+- Analyze requirements and constraints
+- Break complex work into steps
 - Delegate to appropriate specialists
 - Run parallel tasks when possible
 - Synthesize results
-- **Ensure archiving happens** (checks buffer, invokes Archivist)
+- Document architectural decisions
 
 **Do NOT:**
 - Use blocked tools directly - delegate instead
 - Do "exploratory reads" before delegating - let the agent explore
-- Skip the orchestration layer for complex tasks
+- Skip delegation for complex tasks
 
 **Exception:** Trivial interactions (greetings, one-line answers) need no agent.
 
 ## Archiving Protocol (MANDATORY)
 
-The stop hook captures exchanges automatically. 🎯 General MUST invoke 📜 Archivist at the end of every substantive task:
+The stop hook captures exchanges automatically. You MUST invoke 📜 Archivist at the end of every substantive task:
 
 1. Check buffer: `ls buffer/*.txt 2>/dev/null | wc -l`
 2. If count > 0: `Task(subagent_type="📜 Archivist", prompt="Process buffer")`
@@ -125,7 +122,7 @@ entities:
 ## Agents
 
 **Orchestrator:**
-- **🎯 General** - Central coordinator, delegates to specialists, ensures archiving
+- **Main Claude** - You are the orchestrator, route work to specialists
 
 **Core:**
 - **📜 Archivist** - Process buffer → log, extract entities
@@ -135,7 +132,7 @@ entities:
 **Coding:**
 - **🐍 Backend** - Python, APIs, server-side, performance
 - **🎨 Frontend** - TypeScript, React, UX/UI, accessibility
-- **🏗️ Architect** - System design, fullstack, tech decisions
+- **🏗️ Architect** - System design, planning, fullstack, tech decisions
 
 **Domain:**
 - **📈 Trader** - Derivatives MM @ Maven Securities (options, Greeks, quant)
