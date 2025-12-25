@@ -16,7 +16,7 @@ from .schema import SpellbookConfig
 
 console = Console()
 
-GITHUB_REPO = "https://github.com/SBunce92/spellbook.git"
+GITHUB_REPO = "https://github.com/sbunce92/spellbook.git"
 
 SPELLBOOK_MARKER = ".spellbook"
 
