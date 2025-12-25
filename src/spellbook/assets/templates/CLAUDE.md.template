@@ -95,10 +95,14 @@ entities:
 - **📜 Archivist** - Process buffer → log, extract entities
 - **📚 Librarian** - Deep retrieval, synthesize answers with citations
 - **🔍 Researcher** - Fast factual lookup (2-3 sentences)
-- **👻 Specter** - Dead code audit, quality issues
+
+**Coding:**
+- **🐍 Backend** - Python, APIs, server-side, performance
+- **🎨 Frontend** - TypeScript, React, UX/UI, accessibility
+- **🏗️ Architect** - System design, fullstack, tech decisions
 
 **Domain:**
-- **📈 Trader** - Options, derivatives, Greeks, risk
-- **🤖 AI Engineer** - ML systems, LLM integration, RAG
+- **📈 Trader** - Derivatives MM @ Maven Securities (options, Greeks, quant)
+- **🤖 AI Engineer** - ML systems, LLM integration, RAG, spellbook/MCP
 - **🗄️ Data Engineer** - Pipelines, ClickHouse, ETL
-- **📊 Quant Dev** - Numerical computing, statistics
+- **🛠️ DevOps** - CI/CD, Docker, infra, deployment
