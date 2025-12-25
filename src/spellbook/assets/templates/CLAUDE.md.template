@@ -56,8 +56,8 @@ Spellbook activates automatically when Claude runs from this directory.
 | Derivatives, risk, quant | 📈 Trader |
 | Spellbook, MCP, agents | 🤖 AI Engineer |
 | ClickHouse, ETL, pipelines | 🗄️ Data Engineer |
-| Deep retrieval + synthesis | 📚 Librarian |
-| Quick factual lookup | 🔍 Researcher |
+| Deep vault retrieval + synthesis | 📚 Librarian |
+| Web research, papers, documentation | 🔍 Researcher |
 
 🏗️ Architect will:
 - Analyze requirements and constraints
@@ -126,8 +126,8 @@ entities:
 
 **Core:**
 - **📜 Archivist** - Process buffer → log, extract entities
-- **📚 Librarian** - Deep retrieval, synthesize answers with citations
-- **🔍 Researcher** - Fast factual lookup (2-3 sentences)
+- **📚 Librarian** - Deep retrieval from vault, synthesize answers with citations
+- **🔍 Researcher** - Web research, scientific papers, multi-source synthesis
 
 **Coding:**
 - **🐍 Backend** - Python, APIs, server-side, performance
