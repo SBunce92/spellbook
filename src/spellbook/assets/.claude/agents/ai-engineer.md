@@ -1,5 +1,5 @@
 ---
-name: "\U0001F916 AI Engineer"
+name: "🤖 AI Engineer"
 description: Domain specialist for ML systems, LLM integration, RAG architectures, and AI infrastructure. Also handles spellbook vault optimization and MCP server configuration.
 tools: Read, Write, Edit, Glob, Grep, Bash
 ---

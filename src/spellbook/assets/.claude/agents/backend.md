@@ -1,5 +1,5 @@
 ---
-name: "\U0001F40D Backend"
+name: "🐍 Backend"
 description: Python backend specialist. Expert in APIs (FastAPI, Flask), async programming, database integration, performance optimization, and server-side architecture.
 tools: Read, Write, Edit, Glob, Grep, Bash
 ---

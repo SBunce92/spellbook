@@ -1,5 +1,5 @@
 ---
-name: "\U0001F6E0️ DevOps"
+name: "🛠️ DevOps"
 description: DevOps and infrastructure specialist. Expert in CI/CD pipelines, Docker, GitHub Actions, deployment strategies, monitoring, and infrastructure as code.
 tools: Read, Write, Edit, Glob, Grep, Bash
 ---

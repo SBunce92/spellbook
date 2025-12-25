@@ -1,5 +1,5 @@
 ---
-name: "\U0001F4C8 Trader"
+name: "📈 Trader"
 description: Derivatives market maker specialist at Maven Securities. Expert in options/futures pricing, Greeks, volatility surfaces, risk management (VaR, PnL attribution), and quantitative trading systems.
 tools: Read, Write, Edit, Glob, Grep, Bash
 ---

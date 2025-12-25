@@ -1,5 +1,5 @@
 ---
-name: "\U0001F3A8 Frontend"
+name: "🎨 Frontend"
 description: TypeScript frontend and UX/UI specialist. Expert in React, component architecture, state management, accessibility, and modern web development patterns.
 tools: Read, Write, Edit, Glob, Grep, Bash
 ---
