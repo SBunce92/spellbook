@@ -36,7 +36,10 @@ def init(name: str, path: Optional[str]):
 @cli.command()
 @click.option("--no-fetch", is_flag=True, hidden=True, help="Skip package upgrade (internal)")
 def update(no_fetch: bool):
-    """Update managed files to latest version."""
+    """Update managed files to latest version.
+
+    Fetches the latest version from GitHub and syncs vault files.
+    """
     from .installer import update_vault, find_vault_root
 
     vault_path = find_vault_root(Path.cwd())

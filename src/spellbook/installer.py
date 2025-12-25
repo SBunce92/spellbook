@@ -109,32 +109,56 @@ def init_vault(vault_path: Path, name: str) -> None:
 def _self_upgrade() -> bool:
     """Upgrade spellbook from GitHub. Returns True if successful."""
     if shutil.which("uv"):
-        console.print("[dim]Using uv to upgrade...[/dim]")
+        console.print("[dim]Using uv to upgrade (forcing fresh install)...[/dim]")
+        # Use --force --reinstall --refresh to ensure we always get the latest
+        # --force: Force installation even if already installed
+        # --reinstall: Reinstall all packages regardless of cache
+        # --refresh: Refresh all cached data (re-fetch from git)
         result = subprocess.run(
-            ["uv", "tool", "install", "--reinstall", f"git+{GITHUB_REPO}"],
+            [
+                "uv", "tool", "install",
+                "--force",
+                "--reinstall",
+                "--refresh",
+                f"git+{GITHUB_REPO}",
+            ],
             capture_output=True,
             text=True,
         )
         if result.returncode == 0:
             return True
-        console.print(f"[yellow]uv failed:[/yellow] {result.stderr.strip()}")
+        console.print(f"[red]uv install failed:[/red] {result.stderr.strip()}")
+        return False
 
     if shutil.which("pip"):
         console.print("[dim]Falling back to pip...[/dim]")
+        # Use --no-cache-dir to ensure fresh download
         result = subprocess.run(
-            ["pip", "install", "--upgrade", f"git+{GITHUB_REPO}"],
+            [
+                "pip", "install",
+                "--upgrade",
+                "--no-cache-dir",
+                f"git+{GITHUB_REPO}",
+            ],
             capture_output=True,
             text=True,
         )
         if result.returncode == 0:
             return True
-        console.print(f"[yellow]pip failed:[/yellow] {result.stderr.strip()}")
+        console.print(f"[red]pip install failed:[/red] {result.stderr.strip()}")
+        return False
 
+    console.print("[red]Error:[/red] Neither uv nor pip found")
     return False
 
 
 def update_vault(vault_path: Path, fetch: bool = True) -> None:
-    """Update managed files in existing vault."""
+    """Update managed files in existing vault.
+
+    Args:
+        vault_path: Path to the vault root
+        fetch: If True, fetch latest from GitHub before syncing assets
+    """
     config = read_config(vault_path)
     if not config:
         console.print("[red]Error:[/red] Invalid vault (no .spellbook found)")
@@ -142,11 +166,11 @@ def update_vault(vault_path: Path, fetch: bool = True) -> None:
 
     console.print(f"\n[bold]Spellbook[/bold] v{__version__}\n")
 
-    # Step 1: Self-upgrade from GitHub
+    # Step 1: Fetch and install latest from GitHub
     if fetch:
         console.print("Fetching latest from GitHub...")
         if _self_upgrade():
-            console.print("[green]✓[/green] Package upgraded, restarting...\n")
+            console.print("[green]\u2713[/green] Package upgraded, restarting...\n")
             # Re-exec so new code runs the asset sync
             os.execv(
                 sys.executable,
@@ -154,7 +178,10 @@ def update_vault(vault_path: Path, fetch: bool = True) -> None:
             )
             return  # Never reached
 
-        console.print("[yellow]⚠[/yellow] Could not upgrade package (continuing with local assets)")
+        # Upgrade failed - show error and exit
+        console.print("\n[red]Error:[/red] Failed to fetch latest version from GitHub.")
+        console.print("Please check your network connection and try again.")
+        raise SystemExit(1)
 
     # Step 2: Copy assets to vault
     console.print("Syncing vault files...")
