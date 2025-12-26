@@ -21,10 +21,6 @@ SPELLBOOK_MARKER = ".spellbook"
 
 # Directories to create in new vaults
 VAULT_DIRS = [
-    ".claude/agents",
-    ".claude/hooks",
-    ".claude/scripts",
-    ".claude/references",
     "docs",
     "log",
     "buffer",
@@ -81,10 +77,10 @@ def init_vault(vault_path: Path, name: str) -> None:
         full_path.mkdir(parents=True, exist_ok=True)
         console.print(f"  [green]\u2713[/green] {dir_path}/")
 
-    # Copy managed assets
+    # Copy .claude/ directory from assets
     assets_path = get_assets_path()
-    if assets_path.exists():
-        _copy_managed_assets(assets_path, vault_path)
+    _copy_claude_dir(assets_path, vault_path)
+    console.print("  [green]\u2713[/green] .claude/")
 
     # Create CLAUDE.md from template
     _create_claude_md(vault_path, name)
@@ -159,6 +155,9 @@ def _self_upgrade() -> bool:
 def update_vault(vault_path: Path, fetch: bool = True) -> None:
     """Update managed files in existing vault.
 
+    Fully deletes and rewrites: .claude/, .spellbook, CLAUDE.md
+    Never touches: buffer/, log/, index.db
+
     Args:
         vault_path: Path to the vault root
         fetch: If True, fetch latest from GitHub before syncing assets
@@ -187,31 +186,32 @@ def update_vault(vault_path: Path, fetch: bool = True) -> None:
         console.print("Please check your network connection and try again.")
         raise SystemExit(1)
 
-    # Step 2: Copy assets to vault
+    # Step 2: Delete and rewrite managed files
     console.print("Syncing vault files...")
 
-    # Copy managed assets (overwrites _claude/core/)
+    # Delete .claude/ entirely and copy fresh
     assets_path = get_assets_path()
-    if assets_path.exists():
-        updated, new = _copy_managed_assets(assets_path, vault_path, report=True)
-        for f in updated:
-            console.print(f"  [green]\u2713[/green] {f} (updated)")
-        for f in new:
-            console.print(f"  [green]\u2713[/green] {f} (new)")
+    _copy_claude_dir(assets_path, vault_path, clean_first=True)
+    console.print("  [green]\u2713[/green] .claude/ (replaced)")
 
-    # Update CLAUDE.md from template
+    # Overwrite CLAUDE.md
     _update_claude_md(vault_path, config.vault_dir)
-    console.print("  [green]\u2713[/green] CLAUDE.md (updated)")
+    console.print("  [green]\u2713[/green] CLAUDE.md (replaced)")
 
-    # Update config
+    # Update .spellbook config
     config.version = __version__
     config.last_updated = datetime.now()
     write_config(vault_path, config)
+    console.print("  [green]\u2713[/green] .spellbook (updated)")
 
     # Report preserved files
     console.print("\nPreserved:")
     log_count = len(list((vault_path / "log").rglob("*.md")))
-    console.print(f"  - log/* ({log_count} docs)")
+    buffer_count = len(list((vault_path / "buffer").glob("*.txt")))
+    console.print(f"  - log/ ({log_count} docs)")
+    console.print(f"  - buffer/ ({buffer_count} pending)")
+    if (vault_path / "index.db").exists():
+        console.print("  - index.db")
 
     console.print("\n[green]Done![/green]")
 
@@ -259,65 +259,33 @@ def get_vault_status(vault_path: Path) -> None:
     console.print()
 
 
-def _copy_managed_assets(
-    assets_path: Path, vault_path: Path, report: bool = False
-) -> tuple[list[str], list[str]]:
-    """Copy managed assets to vault. Returns (updated, new) file lists."""
-    updated = []
-    new = []
+def _copy_claude_dir(assets_path: Path, vault_path: Path, clean_first: bool = False) -> None:
+    """Copy .claude/ directory from assets to vault.
 
-    # Copy .claude/ directory structure (agents, hooks, scripts)
+    Args:
+        assets_path: Path to bundled assets
+        vault_path: Path to vault root
+        clean_first: If True, delete existing .claude/ before copying
+    """
     src_claude = assets_path / ".claude"
-    if src_claude.exists():
-        # Ensure .claude directory exists
-        (vault_path / ".claude").mkdir(parents=True, exist_ok=True)
+    dest_claude = vault_path / ".claude"
 
-        # Copy settings.json (hook registration)
-        src_settings = src_claude / "settings.json"
-        if src_settings.exists():
-            dest_settings = vault_path / ".claude" / "settings.json"
-            was_existing = dest_settings.exists()
-            shutil.copy2(src_settings, dest_settings)
+    if not src_claude.exists():
+        return
 
-            if report:
-                if was_existing:
-                    updated.append(".claude/settings.json")
-                else:
-                    new.append(".claude/settings.json")
-            else:
-                console.print("  [green]\u2713[/green] .claude/settings.json")
+    # Delete existing .claude/ if requested
+    if clean_first and dest_claude.exists():
+        shutil.rmtree(dest_claude)
 
-        # Copy subdirectories (agents, hooks, scripts, references)
-        for subdir in ["agents", "hooks", "scripts", "references"]:
-            src_dir = src_claude / subdir
-            dest_dir = vault_path / ".claude" / subdir
+    # Copy entire .claude/ directory
+    shutil.copytree(src_claude, dest_claude, dirs_exist_ok=True)
 
-            if not src_dir.exists():
-                continue
-
-            dest_dir.mkdir(parents=True, exist_ok=True)
-
-            for src_file in src_dir.iterdir():
-                if src_file.is_file():
-                    dest_file = dest_dir / src_file.name
-                    was_existing = dest_file.exists()
-
-                    shutil.copy2(src_file, dest_file)
-
-                    # Make hook scripts executable
-                    if subdir == "hooks":
-                        dest_file.chmod(dest_file.stat().st_mode | 0o111)
-
-                    if report:
-                        rel_path = f".claude/{subdir}/{src_file.name}"
-                        if was_existing:
-                            updated.append(rel_path)
-                        else:
-                            new.append(rel_path)
-                    else:
-                        console.print(f"  [green]\u2713[/green] .claude/{subdir}/{src_file.name}")
-
-    return updated, new
+    # Make hook scripts executable
+    hooks_dir = dest_claude / "hooks"
+    if hooks_dir.exists():
+        for hook_file in hooks_dir.iterdir():
+            if hook_file.is_file():
+                hook_file.chmod(hook_file.stat().st_mode | 0o111)
 
 
 def _create_claude_md(vault_path: Path, name: str) -> None:
