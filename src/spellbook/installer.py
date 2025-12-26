@@ -26,6 +26,7 @@ VAULT_DIRS = [
     ".claude/hooks",
     ".claude/scripts",
     ".claude/context",
+    ".claude/references",
     "docs",
     "log",
     "buffer",
@@ -285,8 +286,8 @@ def _copy_managed_assets(
             else:
                 console.print("  [green]\u2713[/green] .claude/settings.json")
 
-        # Copy subdirectories (agents, hooks, scripts, context)
-        for subdir in ["agents", "hooks", "scripts", "context"]:
+        # Copy subdirectories (agents, hooks, scripts, context, references)
+        for subdir in ["agents", "hooks", "scripts", "context", "references"]:
             src_dir = src_claude / subdir
             dest_dir = vault_path / ".claude" / subdir
 
