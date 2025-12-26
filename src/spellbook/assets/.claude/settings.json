@@ -20,12 +20,13 @@
         ]
       }
     ],
-    "SubagentStart": [
+    "PreToolUse": [
       {
+        "matcher": "Task",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/subagent_start.py\""
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/pretool_task.py\""
           }
         ]
       }

@@ -1,28 +1,36 @@
 #!/usr/bin/env python3
 """
-SubagentStart hook: Inject load_references instructions for subagents.
+PreToolUse hook for Task tool: Inject load_references instructions for subagents.
 
-When a subagent is invoked via Task tool, this hook checks if the agent
-has `load_references` defined in its YAML frontmatter. If so, it prepends
-instructions to load those reference files before proceeding with the task.
+When the Task tool is invoked, this hook checks if the target agent
+has `load_references` defined in its YAML frontmatter. If so, it modifies
+the tool input to prepend instructions to load those reference files
+before proceeding with the task.
 
-Input JSON:
+Input JSON (PreToolUse format):
 {
     "session_id": "...",
-    "subagent_name": "agent name (e.g., '📜 Archivist')",
-    "subagent_prompt": "original prompt from Task call",
+    "tool_name": "Task",
+    "tool_input": {
+        "subagent_type": "agent name (e.g., '📜 Archivist')",
+        "prompt": "original prompt from Task call"
+    },
     "cwd": "/path/to/vault",
-    "hook_event_name": "SubagentStart"
+    "hook_event_name": "PreToolUse"
 }
 
-Output JSON:
+Output JSON (PreToolUse format):
 {
-    "continue": true,
     "hookSpecificOutput": {
-        "hookEventName": "SubagentStart",
-        "modifiedPrompt": "modified prompt with reference loading instructions"
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "allow",
+        "updatedInput": {
+            "prompt": "modified prompt with reference loading instructions"
+        }
     }
 }
+
+If tool_name is not "Task", exits with no output (pass-through).
 """
 
 import json
@@ -174,37 +182,43 @@ def main():
     try:
         hook_input = json.load(sys.stdin)
     except json.JSONDecodeError:
-        print(json.dumps({"continue": True}))
-        return
+        # Invalid input, pass through silently
+        sys.exit(0)
 
+    # Early exit if not a Task tool call
+    tool_name = hook_input.get("tool_name", "")
+    if tool_name != "Task":
+        sys.exit(0)
+
+    tool_input = hook_input.get("tool_input", {})
     cwd = Path(hook_input.get("cwd", "."))
-    subagent_type = hook_input.get("subagent_name", "")
-    original_prompt = hook_input.get("subagent_prompt", "")
+    subagent_type = tool_input.get("subagent_type", "")
+    original_prompt = tool_input.get("prompt", "")
 
     # Find vault root
     vault = find_vault_root(cwd)
     if not vault:
         # Not in a spellbook vault, pass through
-        print(json.dumps({"continue": True}))
-        return
+        sys.exit(0)
 
     # Get load_references for this agent
     references = get_load_references(vault, subagent_type)
 
     if not references:
         # No references to load, pass through
-        print(json.dumps({"continue": True}))
-        return
+        sys.exit(0)
 
     # Build the modified prompt with reference loading instructions
     prefix = build_reference_prefix(references)
     modified_prompt = prefix + original_prompt
 
     response = {
-        "continue": True,
         "hookSpecificOutput": {
-            "hookEventName": "SubagentStart",
-            "modifiedPrompt": modified_prompt
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "allow",
+            "updatedInput": {
+                "prompt": modified_prompt
+            }
         }
     }
     print(json.dumps(response))
