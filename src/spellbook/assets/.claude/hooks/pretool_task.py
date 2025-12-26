@@ -217,6 +217,7 @@ def main():
             "hookEventName": "PreToolUse",
             "permissionDecision": "allow",
             "updatedInput": {
+                **tool_input,  # Preserve all original fields (subagent_type, etc.)
                 "prompt": modified_prompt
             }
         }
