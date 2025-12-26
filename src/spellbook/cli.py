@@ -6,6 +6,7 @@ from typing import Optional
 
 import click
 from rich.console import Console
+from rich.table import Table
 
 from . import __version__
 
@@ -201,7 +202,7 @@ def _format_date(dt_str: Optional[str]) -> str:
 
 
 def _show_sessions_tree(conn) -> None:
-    """Show sessions in tree view with agents nested underneath."""
+    """Show sessions in a clean table format."""
     from .index import get_sessions, get_subagent_calls_for_session
 
     sessions = get_sessions(conn, limit=50)
@@ -210,73 +211,117 @@ def _show_sessions_tree(conn) -> None:
         console.print("[yellow]No sessions found.[/yellow]")
         return
 
-    # Group by date
-    by_date: dict[str, list[dict]] = {}
+    console.print()
+
+    # Create main sessions table
+    table = Table(
+        title="Context Usage",
+        title_style="bold",
+        show_header=True,
+        header_style="bold cyan",
+        border_style="dim",
+        padding=(0, 1),
+    )
+
+    table.add_column("Date", style="dim", width=10)
+    table.add_column("Session", style="bold", width=12)
+    table.add_column("Tokens", justify="right", width=10)
+    table.add_column("Duration", justify="right", width=8)
+    table.add_column("Agents", width=40)
+
+    prev_date = None
     for s in sessions:
+        session_tokens = (s.get("total_input_tokens") or 0) + (s.get("total_output_tokens") or 0)
+
+        # Calculate duration
+        started = s.get("started_at")
+        ended = s.get("ended_at")
+        duration_str = "-"
+        if started and ended:
+            try:
+                start_dt = datetime.fromisoformat(started.replace("Z", "+00:00"))
+                end_dt = datetime.fromisoformat(ended.replace("Z", "+00:00"))
+                duration_ms = int((end_dt - start_dt).total_seconds() * 1000)
+                duration_str = _format_duration(duration_ms)
+            except (ValueError, AttributeError):
+                pass
+
+        session_name = s.get("slug") or s["id"][:8]
         date = _format_date(s.get("started_at"))
-        if date not in by_date:
-            by_date[date] = []
-        by_date[date].append(s)
 
-    console.print(f"\n[bold]Context Usage[/bold]\n")
+        # Get agent calls and aggregate by type
+        calls = get_subagent_calls_for_session(conn, s["id"])
+        agents_str = _format_agents_summary(calls)
 
-    for date in sorted(by_date.keys(), reverse=True):
-        day_sessions = by_date[date]
+        # Only show date if different from previous row
+        display_date = date if date != prev_date else ""
+        prev_date = date
 
-        console.print(f"[cyan]{date}[/cyan]")
+        table.add_row(
+            display_date,
+            session_name,
+            _format_tokens(session_tokens),
+            duration_str,
+            agents_str,
+        )
 
-        for s in day_sessions:
-            session_tokens = (s.get("total_input_tokens") or 0) + (s.get("total_output_tokens") or 0)
+    console.print(table)
+    console.print()
 
-            # Calculate duration
-            started = s.get("started_at")
-            ended = s.get("ended_at")
-            duration_str = "-"
-            if started and ended:
-                try:
-                    start_dt = datetime.fromisoformat(started.replace("Z", "+00:00"))
-                    end_dt = datetime.fromisoformat(ended.replace("Z", "+00:00"))
-                    duration_ms = int((end_dt - start_dt).total_seconds() * 1000)
-                    duration_str = _format_duration(duration_ms)
-                except (ValueError, AttributeError):
-                    pass
 
-            session_name = s.get("slug") or s["id"][:8]
-            console.print(f"  {session_name:<16} {_format_tokens(session_tokens):>8} tokens  {duration_str:>8}")
+def _format_agents_summary(calls: list[dict]) -> str:
+    """Format agent calls into a compact summary string."""
+    if not calls:
+        return "[dim]-[/dim]"
 
-            # Get agent calls and aggregate by type
-            calls = get_subagent_calls_for_session(conn, s["id"])
-            if not calls:
-                console.print(f"    [dim](no agents)[/dim]")
-            else:
-                # Aggregate by agent type
-                by_type: dict[str, dict] = {}
-                for c in calls:
-                    atype = c.get("agent_type") or "Unknown"
-                    if atype not in by_type:
-                        by_type[atype] = {"count": 0, "tokens": 0, "duration_ms": 0}
-                    by_type[atype]["count"] += 1
-                    by_type[atype]["tokens"] += c.get("total_tokens") or 0
-                    by_type[atype]["duration_ms"] += c.get("duration_ms") or 0
+    # Aggregate by agent type
+    by_type: dict[str, dict] = {}
+    for c in calls:
+        atype = c.get("agent_type") or "Unknown"
+        if atype not in by_type:
+            by_type[atype] = {"count": 0, "tokens": 0}
+        by_type[atype]["count"] += 1
+        by_type[atype]["tokens"] += c.get("total_tokens") or 0
 
-                # Sort by tokens descending, show top agents
-                sorted_types = sorted(by_type.items(), key=lambda x: x[1]["tokens"], reverse=True)
-                shown = 0
-                for atype, stats in sorted_types:
-                    if shown >= 3:
-                        remaining = len(sorted_types) - shown
-                        if remaining > 0:
-                            console.print(f"    [dim]...[/dim]")
-                        break
-                    # Format with emoji prefix if agent type matches known agents
-                    agent_display = _format_agent_name(atype)
-                    tokens_str = _format_tokens(stats["tokens"])
-                    duration_str = _format_duration(stats["duration_ms"])
-                    count = stats["count"]
-                    console.print(f"    {agent_display:<20} {tokens_str:>8} tokens  {duration_str:>8}    [dim]x{count}[/dim]")
-                    shown += 1
+    # Sort by tokens descending
+    sorted_types = sorted(by_type.items(), key=lambda x: x[1]["tokens"], reverse=True)
 
-            console.print()
+    # Build compact display: "Agent x2, Agent x1" format - show ALL agents
+    parts = []
+    for atype, stats in sorted_types:
+        # Use agent type as-is (preserves emoji if present in name)
+        # Only add emoji if not already present
+        if not any(ord(c) > 127 for c in atype[:2] if atype):
+            emoji = _get_agent_emoji(atype)
+            display_name = f"{emoji} {atype}" if emoji else atype
+        else:
+            display_name = atype
+        count = stats["count"]
+        tokens = _format_tokens(stats["tokens"])
+        if count > 1:
+            parts.append(f"{display_name} [dim]x{count}[/dim] ({tokens})")
+        else:
+            parts.append(f"{display_name} ({tokens})")
+
+    return ", ".join(parts)
+
+
+def _get_agent_emoji(agent_type: str) -> str:
+    """Get emoji for agent type."""
+    emoji_map = {
+        "Archivist": "\U0001F4DC",      # scroll
+        "Librarian": "\U0001F4DA",      # books
+        "Researcher": "\U0001F50D",     # magnifying glass
+        "Backend": "\U0001F40D",        # snake
+        "Frontend": "\U0001F3A8",       # palette
+        "Architect": "\U0001F3D7",      # building construction
+        "Trader": "\U0001F4C8",         # chart increasing
+        "AI Engineer": "\U0001F916",    # robot
+        "Data Engineer": "\U0001F5C4",  # file cabinet
+        "DevOps": "\U0001F6E0",         # hammer and wrench
+        "General": "\U0001F464",        # bust in silhouette
+    }
+    return emoji_map.get(agent_type, "")
 
 
 def _format_agent_name(agent_type: str) -> str:
