@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import click
 from rich.console import Console
@@ -22,8 +21,10 @@ def cli():
 
 @cli.command()
 @click.option("--name", "-n", prompt="Vault directory", help="Directory name for this vault")
-@click.option("--path", "-p", type=click.Path(), default=None, help="Parent directory (defaults to cwd)")
-def init(name: str, path: Optional[str]):
+@click.option(
+    "--path", "-p", type=click.Path(), default=None, help="Parent directory (defaults to cwd)"
+)
+def init(name: str, path: str | None):
     """Initialize a new Spellbook vault.
 
     Creates a directory with the vault name and initializes inside it.
@@ -42,7 +43,7 @@ def update(no_fetch: bool):
 
     Fetches the latest version from GitHub and syncs vault files.
     """
-    from .installer import update_vault, find_vault_root
+    from .installer import find_vault_root, update_vault
 
     vault_path = find_vault_root(Path.cwd())
     if not vault_path:
@@ -68,8 +69,8 @@ def status():
 @cli.command()
 def rebuild():
     """Rebuild index.db from log documents."""
-    from .installer import find_vault_root
     from .index import rebuild_index
+    from .installer import find_vault_root
 
     vault_path = find_vault_root(Path.cwd())
     if not vault_path:
@@ -81,14 +82,14 @@ def rebuild():
 
 @cli.command()
 @click.option("--type", "-t", "entity_type", help="Filter by entity type")
-def entities(entity_type: Optional[str]):
+def entities(entity_type: str | None):
     """List all entities with their aliases.
 
     Shows entities grouped by type, sorted alphabetically, with any
     aliases listed beneath each canonical name.
     """
-    from .installer import find_vault_root
     from .index import list_entities_with_aliases
+    from .installer import find_vault_root
 
     vault_path = find_vault_root(Path.cwd())
     if not vault_path:
@@ -107,6 +108,7 @@ def cc(resume: bool, cont: bool, safe: bool, args: tuple):
     """Launch Claude Code in the vault (skips permissions by default)."""
     import os
     import subprocess
+
     from .installer import find_vault_root
 
     vault_path = find_vault_root(Path.cwd())
@@ -140,13 +142,11 @@ def context():
 
     Displays sessions grouped by date with agents nested underneath.
     """
-    from .installer import find_vault_root
     from .index import (
         ensure_context_schema,
-        get_sessions,
-        get_subagent_calls_for_session,
         has_context_tables,
     )
+    from .installer import find_vault_root
 
     vault_path = find_vault_root(Path.cwd())
     if not vault_path:
@@ -176,7 +176,7 @@ def _format_tokens(n: int) -> str:
     return str(n)
 
 
-def _format_duration(ms: Optional[int]) -> str:
+def _format_duration(ms: int | None) -> str:
     """Format duration in ms to human-readable."""
     if ms is None or ms == 0:
         return "-"
@@ -190,7 +190,7 @@ def _format_duration(ms: Optional[int]) -> str:
     return f"{hours:.1f}h"
 
 
-def _format_date(dt_str: Optional[str]) -> str:
+def _format_date(dt_str: str | None) -> str:
     """Format datetime string to date only."""
     if not dt_str:
         return "-"
@@ -309,17 +309,17 @@ def _format_agents_summary(calls: list[dict]) -> str:
 def _get_agent_emoji(agent_type: str) -> str:
     """Get emoji for agent type."""
     emoji_map = {
-        "Archivist": "\U0001F4DC",      # scroll
-        "Librarian": "\U0001F4DA",      # books
-        "Researcher": "\U0001F50D",     # magnifying glass
-        "Backend": "\U0001F40D",        # snake
-        "Frontend": "\U0001F3A8",       # palette
-        "Architect": "\U0001F3D7",      # building construction
-        "Trader": "\U0001F4C8",         # chart increasing
-        "AI Engineer": "\U0001F916",    # robot
-        "Data Engineer": "\U0001F5C4",  # file cabinet
-        "DevOps": "\U0001F6E0",         # hammer and wrench
-        "General": "\U0001F464",        # bust in silhouette
+        "Archivist": "\U0001f4dc",  # scroll
+        "Librarian": "\U0001f4da",  # books
+        "Researcher": "\U0001f50d",  # magnifying glass
+        "Backend": "\U0001f40d",  # snake
+        "Frontend": "\U0001f3a8",  # palette
+        "Architect": "\U0001f3d7",  # building construction
+        "Trader": "\U0001f4c8",  # chart increasing
+        "AI Engineer": "\U0001f916",  # robot
+        "Data Engineer": "\U0001f5c4",  # file cabinet
+        "DevOps": "\U0001f6e0",  # hammer and wrench
+        "General": "\U0001f464",  # bust in silhouette
     }
     return emoji_map.get(agent_type, "")
 
@@ -328,17 +328,17 @@ def _format_agent_name(agent_type: str) -> str:
     """Format agent type with emoji prefix."""
     # Map agent types to their emoji prefixes
     emoji_map = {
-        "Archivist": "\U0001F4DC",      # scroll
-        "Librarian": "\U0001F4DA",      # books
-        "Researcher": "\U0001F50D",     # magnifying glass
-        "Backend": "\U0001F40D",        # snake
-        "Frontend": "\U0001F3A8",       # palette
-        "Architect": "\U0001F3D7",      # building construction
-        "Trader": "\U0001F4C8",         # chart increasing
-        "AI Engineer": "\U0001F916",    # robot
-        "Data Engineer": "\U0001F5C4",  # file cabinet
-        "DevOps": "\U0001F6E0",         # hammer and wrench
-        "General": "\U0001F464",        # bust in silhouette
+        "Archivist": "\U0001f4dc",  # scroll
+        "Librarian": "\U0001f4da",  # books
+        "Researcher": "\U0001f50d",  # magnifying glass
+        "Backend": "\U0001f40d",  # snake
+        "Frontend": "\U0001f3a8",  # palette
+        "Architect": "\U0001f3d7",  # building construction
+        "Trader": "\U0001f4c8",  # chart increasing
+        "AI Engineer": "\U0001f916",  # robot
+        "Data Engineer": "\U0001f5c4",  # file cabinet
+        "DevOps": "\U0001f6e0",  # hammer and wrench
+        "General": "\U0001f464",  # bust in silhouette
     }
     emoji = emoji_map.get(agent_type, "")
     if emoji:

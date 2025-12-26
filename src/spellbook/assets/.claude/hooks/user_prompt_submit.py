@@ -21,13 +21,13 @@ Output JSON:
     "systemMessage": "optional message to inject before Claude sees prompt"
 }
 """
+
 import json
 import sys
 from pathlib import Path
-from typing import Optional
 
 
-def find_vault_root(start_path: Path) -> Optional[Path]:
+def find_vault_root(start_path: Path) -> Path | None:
     """Find vault root by looking for .spellbook marker."""
     current = start_path.resolve()
     while current != current.parent:
@@ -116,10 +116,7 @@ def main():
 
     response = {
         "continue": True,
-        "hookSpecificOutput": {
-            "hookEventName": "UserPromptSubmit",
-            "additionalContext": context
-        }
+        "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": context},
     }
 
     print(json.dumps(response))

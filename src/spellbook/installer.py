@@ -6,7 +6,6 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import yaml
 from rich.console import Console
@@ -25,7 +24,6 @@ VAULT_DIRS = [
     ".claude/agents",
     ".claude/hooks",
     ".claude/scripts",
-    ".claude/context",
     ".claude/references",
     "docs",
     "log",
@@ -38,7 +36,7 @@ def get_assets_path() -> Path:
     return Path(__file__).parent / "assets"
 
 
-def find_vault_root(start_path: Path) -> Optional[Path]:
+def find_vault_root(start_path: Path) -> Path | None:
     """Find vault root by looking for .spellbook marker."""
     current = start_path.resolve()
     while current != current.parent:
@@ -48,7 +46,7 @@ def find_vault_root(start_path: Path) -> Optional[Path]:
     return None
 
 
-def read_config(vault_path: Path) -> Optional[SpellbookConfig]:
+def read_config(vault_path: Path) -> SpellbookConfig | None:
     """Read vault configuration from .spellbook file."""
     config_path = vault_path / SPELLBOOK_MARKER
     if not config_path.exists():
@@ -119,7 +117,9 @@ def _self_upgrade() -> bool:
         # --refresh: Refresh all cached data (re-fetch from git)
         result = subprocess.run(
             [
-                "uv", "tool", "install",
+                "uv",
+                "tool",
+                "install",
                 "--force",
                 "--reinstall",
                 "--refresh",
@@ -138,7 +138,8 @@ def _self_upgrade() -> bool:
         # Use --no-cache-dir to ensure fresh download
         result = subprocess.run(
             [
-                "pip", "install",
+                "pip",
+                "install",
                 "--upgrade",
                 "--no-cache-dir",
                 f"git+{GITHUB_REPO}",
@@ -286,8 +287,8 @@ def _copy_managed_assets(
             else:
                 console.print("  [green]\u2713[/green] .claude/settings.json")
 
-        # Copy subdirectories (agents, hooks, scripts, context, references)
-        for subdir in ["agents", "hooks", "scripts", "context", "references"]:
+        # Copy subdirectories (agents, hooks, scripts, references)
+        for subdir in ["agents", "hooks", "scripts", "references"]:
             src_dir = src_claude / subdir
             dest_dir = vault_path / ".claude" / subdir
 

@@ -4,7 +4,6 @@
 import sqlite3
 import sys
 from pathlib import Path
-from typing import Optional
 
 import yaml
 
@@ -43,7 +42,7 @@ CREATE INDEX IF NOT EXISTS idx_entities_name ON entities(name COLLATE NOCASE);
 """
 
 
-def parse_frontmatter(content: str) -> Optional[dict]:
+def parse_frontmatter(content: str) -> dict | None:
     """Extract YAML frontmatter from markdown."""
     if not content.startswith("---"):
         return None
@@ -136,9 +135,7 @@ def rebuild(vault_path: Path) -> None:
                 )
 
                 # Get entity id
-                cursor = conn.execute(
-                    "SELECT id FROM entities WHERE name = ?", [name]
-                )
+                cursor = conn.execute("SELECT id FROM entities WHERE name = ?", [name])
                 entity_id = cursor.fetchone()[0]
 
                 # Add canonical name as an alias (if not exists)
@@ -171,7 +168,7 @@ def rebuild(vault_path: Path) -> None:
     unique_entities = cursor.fetchone()[0]
     conn.close()
 
-    print(f"\nDone!")
+    print("\nDone!")
     print(f"  Documents: {doc_count}")
     print(f"  Entities:  {unique_entities}")
     if errors:

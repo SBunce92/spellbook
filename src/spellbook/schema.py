@@ -2,10 +2,8 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel
-
 
 # =============================================================================
 # Document Types
@@ -75,7 +73,7 @@ class ArchiveDoc(BaseModel):
     entities: list[EntityRef]
     related_docs: list[RelatedDoc] = []
     tags: list[str] = []
-    source_session: Optional[str] = None
+    source_session: str | None = None
     source_files: list[str] = []
 
 
@@ -88,9 +86,9 @@ class BufferEntry(BaseModel):
     """Raw transcript awaiting processing."""
 
     ts: datetime
-    session_id: Optional[str] = None
+    session_id: str | None = None
     transcript: str
-    working_directory: Optional[str] = None
+    working_directory: str | None = None
     files_touched: list[str] = []
 
 
@@ -119,13 +117,13 @@ class SessionUsage(BaseModel):
     id: str  # Session UUID
     vault_path: str
     started_at: datetime
-    ended_at: Optional[datetime] = None
+    ended_at: datetime | None = None
     total_input_tokens: int = 0
     total_output_tokens: int = 0
     total_cache_creation: int = 0
     total_cache_read: int = 0
     total_messages: int = 0
-    slug: Optional[str] = None  # Human-readable session name
+    slug: str | None = None  # Human-readable session name
 
 
 class SubagentCall(BaseModel):
@@ -134,11 +132,11 @@ class SubagentCall(BaseModel):
     session_id: str
     agent_id: str  # Short hex ID (e.g., "afb88bb")
     agent_type: str  # "Archivist", "Backend", etc.
-    description: Optional[str] = None
-    prompt_preview: Optional[str] = None  # First 200 chars of prompt
+    description: str | None = None
+    prompt_preview: str | None = None  # First 200 chars of prompt
     started_at: datetime
-    ended_at: Optional[datetime] = None
-    duration_ms: Optional[int] = None
+    ended_at: datetime | None = None
+    duration_ms: int | None = None
     input_tokens: int = 0
     output_tokens: int = 0
     cache_creation: int = 0

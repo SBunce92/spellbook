@@ -2,7 +2,6 @@
 
 import sqlite3
 from pathlib import Path
-from typing import Optional
 
 import yaml
 from rich.console import Console
@@ -150,7 +149,7 @@ def find_entities_like(conn: sqlite3.Connection, pattern: str) -> list[str]:
     return [row[0] for row in cursor.fetchall()]
 
 
-def get_entity(conn: sqlite3.Connection, name: str) -> Optional[dict]:
+def get_entity(conn: sqlite3.Connection, name: str) -> dict | None:
     """Get entity details by name."""
     cursor = conn.execute(
         """
@@ -166,7 +165,7 @@ def get_entity(conn: sqlite3.Connection, name: str) -> Optional[dict]:
 
 
 def get_recent_entities(
-    conn: sqlite3.Connection, limit: int = 20, entity_type: Optional[str] = None
+    conn: sqlite3.Connection, limit: int = 20, entity_type: str | None = None
 ) -> list[dict]:
     """Get recently mentioned entities."""
     if entity_type:
@@ -191,7 +190,7 @@ def get_recent_entities(
     return [dict(row) for row in cursor.fetchall()]
 
 
-def parse_document(doc_path: Path) -> Optional[ArchiveDoc]:
+def parse_document(doc_path: Path) -> ArchiveDoc | None:
     """Parse a markdown document with YAML frontmatter."""
     content = doc_path.read_text()
 
@@ -359,9 +358,7 @@ def _get_entity_id_column(conn: sqlite3.Connection) -> str:
     return "id" if "id" in columns else "name"
 
 
-def list_entities_with_aliases(
-    vault_path: Path, entity_type: str | None = None
-) -> None:
+def list_entities_with_aliases(vault_path: Path, entity_type: str | None = None) -> None:
     """List all entities grouped by type with their aliases.
 
     Output is deterministic: sorted by type, then by canonical name.
@@ -523,7 +520,7 @@ def rebuild_index(vault_path: Path) -> None:
     unique_entities = cursor.fetchone()[0]
     conn.close()
 
-    console.print(f"\n[green]Done![/green]")
+    console.print("\n[green]Done![/green]")
     console.print(f"  Documents: {doc_count}")
     console.print(f"  Entities:  {unique_entities}")
     if errors:
@@ -620,7 +617,7 @@ def insert_subagent_call(conn: sqlite3.Connection, call: SubagentCall) -> None:
 
 def get_sessions(
     conn: sqlite3.Connection,
-    since: Optional[str] = None,
+    since: str | None = None,
     limit: int = 50,
 ) -> list[dict]:
     """Get sessions, optionally filtered by date."""
@@ -646,7 +643,7 @@ def get_sessions(
     return [dict(row) for row in cursor.fetchall()]
 
 
-def get_session_by_id(conn: sqlite3.Connection, session_id: str) -> Optional[dict]:
+def get_session_by_id(conn: sqlite3.Connection, session_id: str) -> dict | None:
     """Get a specific session by ID or slug prefix."""
     # Try exact ID match first
     cursor = conn.execute("SELECT * FROM sessions WHERE id = ?", [session_id])
@@ -666,9 +663,7 @@ def get_session_by_id(conn: sqlite3.Connection, session_id: str) -> Optional[dic
     return None
 
 
-def get_subagent_calls_for_session(
-    conn: sqlite3.Connection, session_id: str
-) -> list[dict]:
+def get_subagent_calls_for_session(conn: sqlite3.Connection, session_id: str) -> list[dict]:
     """Get all subagent calls for a session."""
     cursor = conn.execute(
         """
@@ -684,7 +679,7 @@ def get_subagent_calls_for_session(
 def get_subagent_calls_by_type(
     conn: sqlite3.Connection,
     agent_type: str,
-    since: Optional[str] = None,
+    since: str | None = None,
     limit: int = 50,
 ) -> list[dict]:
     """Get subagent calls filtered by agent type."""
@@ -718,7 +713,7 @@ def get_subagent_calls_by_type(
 def get_expensive_calls(
     conn: sqlite3.Connection,
     limit: int = 10,
-    since: Optional[str] = None,
+    since: str | None = None,
 ) -> list[dict]:
     """Get top N most expensive subagent calls by total tokens."""
     if since:
@@ -749,7 +744,7 @@ def get_expensive_calls(
 
 def get_agent_type_summary(
     conn: sqlite3.Connection,
-    since: Optional[str] = None,
+    since: str | None = None,
 ) -> list[dict]:
     """Get aggregated stats by agent type."""
     if since:

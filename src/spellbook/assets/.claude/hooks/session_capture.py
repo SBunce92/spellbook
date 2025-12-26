@@ -22,18 +22,18 @@ Receives JSON on stdin:
     "hook_event_name": "Stop"
 }
 """
+
 import json
 import re
 import sqlite3
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 BUFFER_THRESHOLD = 5  # Suggest archivist after this many buffer files
 
 
-def find_vault_root(start_path: Path) -> Optional[Path]:
+def find_vault_root(start_path: Path) -> Path | None:
     """Find vault root by looking for .spellbook marker."""
     current = start_path.resolve()
     while current != current.parent:
@@ -49,7 +49,7 @@ def load_state(buffer_dir: Path) -> dict:
     if state_file.exists():
         try:
             return json.loads(state_file.read_text())
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             pass
     return {"last_captured_ts": None}
 
@@ -77,7 +77,7 @@ def extract_text_content(content) -> str:
     return ""
 
 
-def extract_delta(transcript_path: str, last_ts: Optional[str]) -> tuple[str, str, int]:
+def extract_delta(transcript_path: str, last_ts: str | None) -> tuple[str, str, int]:
     """
     Extract messages newer than last_ts as simple text.
     Returns (text_content, latest_ts, message_count).
@@ -88,7 +88,7 @@ def extract_delta(transcript_path: str, last_ts: Optional[str]) -> tuple[str, st
     message_count = 0
 
     try:
-        with open(transcript_path, "r") as f:
+        with open(transcript_path) as f:
             for line in f:
                 try:
                     entry = json.loads(line)
@@ -121,7 +121,7 @@ def extract_delta(transcript_path: str, last_ts: Optional[str]) -> tuple[str, st
 
                 except json.JSONDecodeError:
                     continue
-    except (FileNotFoundError, IOError):
+    except (OSError, FileNotFoundError):
         pass
 
     return "\n\n".join(lines), latest_ts, message_count
@@ -199,7 +199,7 @@ def extract_usage_data(transcript_path: str, session_id: str) -> dict:
     pending_tasks: dict[str, dict] = {}  # tool_use_id -> task input info
 
     try:
-        with open(transcript_path, "r") as f:
+        with open(transcript_path) as f:
             for line in f:
                 try:
                     entry = json.loads(line)
@@ -227,9 +227,7 @@ def extract_usage_data(transcript_path: str, session_id: str) -> dict:
                         usage["total_cache_creation"] += msg_usage.get(
                             "cache_creation_input_tokens", 0
                         )
-                        usage["total_cache_read"] += msg_usage.get(
-                            "cache_read_input_tokens", 0
-                        )
+                        usage["total_cache_read"] += msg_usage.get("cache_read_input_tokens", 0)
                         usage["total_messages"] += 1
 
                         # Look for Task tool_use blocks to track pending tasks
@@ -261,10 +259,7 @@ def extract_usage_data(transcript_path: str, session_id: str) -> dict:
                         tool_result = entry.get("toolUseResult", {})
                         if isinstance(content, list):
                             for block in content:
-                                if (
-                                    isinstance(block, dict)
-                                    and block.get("type") == "tool_result"
-                                ):
+                                if isinstance(block, dict) and block.get("type") == "tool_result":
                                     tool_use_id = block.get("tool_use_id")
 
                                     # Check if this is a Task result with agentId
@@ -274,9 +269,7 @@ def extract_usage_data(transcript_path: str, session_id: str) -> dict:
                                         result_usage = tool_result.get("usage", {})
 
                                         # Strip emoji prefix from agent type for cleaner storage
-                                        agent_type = task_info.get(
-                                            "subagent_type", "Unknown"
-                                        )
+                                        agent_type = task_info.get("subagent_type", "Unknown")
                                         # Remove leading emoji + space if present
                                         # Handle both actual Unicode emojis and escaped forms like \\U0001F916
                                         agent_type = re.sub(r"^\\U[0-9A-Fa-f]+\s*", "", agent_type)
@@ -293,37 +286,27 @@ def extract_usage_data(transcript_path: str, session_id: str) -> dict:
                                             ),
                                             "started_at": task_info.get("started_at"),
                                             "ended_at": entry_ts,
-                                            "duration_ms": tool_result.get(
-                                                "totalDurationMs"
-                                            ),
-                                            "total_tokens": tool_result.get(
-                                                "totalTokens", 0
-                                            ),
+                                            "duration_ms": tool_result.get("totalDurationMs"),
+                                            "total_tokens": tool_result.get("totalTokens", 0),
                                             "tool_use_count": tool_result.get(
                                                 "totalToolUseCount", 0
                                             ),
-                                            "input_tokens": result_usage.get(
-                                                "input_tokens", 0
-                                            ),
-                                            "output_tokens": result_usage.get(
-                                                "output_tokens", 0
-                                            ),
+                                            "input_tokens": result_usage.get("input_tokens", 0),
+                                            "output_tokens": result_usage.get("output_tokens", 0),
                                             "cache_creation": result_usage.get(
                                                 "cache_creation_input_tokens", 0
                                             ),
                                             "cache_read": result_usage.get(
                                                 "cache_read_input_tokens", 0
                                             ),
-                                            "status": tool_result.get(
-                                                "status", "completed"
-                                            ),
+                                            "status": tool_result.get("status", "completed"),
                                         }
                                         usage["subagent_calls"].append(subagent_call)
 
                 except json.JSONDecodeError:
                     continue
 
-    except (FileNotFoundError, IOError):
+    except (OSError, FileNotFoundError):
         pass
 
     return usage
