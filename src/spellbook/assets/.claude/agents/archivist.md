@@ -261,11 +261,11 @@ rm buffer/*.txt
 
 ## Design Documents
 
-Design docs are longer-form documents that evolve over time. They follow a promotion pattern:
+Design docs are longer-form documents that evolve over time:
 
 ```
-buffer/*.md → docs/ → log/
-   (draft)   (active)  (archived)
+buffer/*.md → "Promote" → docs/
+   (draft)               (permanent home)
 ```
 
 ### Creating Design Docs
@@ -282,7 +282,6 @@ When user asks for a "design doc" or complex multi-part design:
    ---
    type: design
    date: 2025-12-26
-   status: draft
    entities:
      project: [spellbook]
      concept: [entity normalization]
@@ -293,28 +292,22 @@ When user asks for a "design doc" or complex multi-part design:
 
 ### Promoting to docs/
 
-When a design doc is ready to be "active" (shared, indexed, in Obsidian):
+When a design doc is ready (user requests "Promote X to docs"):
 
-1. User requests: "Promote entity-design.md to docs"
-2. Move: `mv buffer/entity-design.md docs/entity-design.md`
-3. Update status in frontmatter: `status: active`
+```bash
+mv buffer/entity-design.md docs/entity-design.md
+```
 
-### Promoting to log/
-
-When a design doc is finalized and should be archived:
-
-1. User requests: "Promote entity-design.md to log"
-2. Move to log with date prefix: `log/2025-12-26/008-entity-design.md`
-3. Update status: `status: archived`
-4. Remove from docs/
+docs/ is the permanent home - design docs stay there and remain editable.
 
 ### Directory Purposes
 
-| Location | Purpose | Indexed | Editable | Obsidian |
-|----------|---------|---------|----------|----------|
-| `buffer/*.md` | Draft design docs | No | Yes | No |
-| `docs/` | Active design docs | Yes | Yes | Primary vault |
-| `log/` | Archived documents | Yes | No | Can backlink |
+| Location | Purpose | Indexed | Editable |
+|----------|---------|---------|----------|
+| `buffer/*.txt` | Conversation captures | No | Deleted after processing |
+| `buffer/*.md` | Draft design docs | No | Yes |
+| `docs/` | Design documents | Yes | Yes (Obsidian vault) |
+| `log/` | Archived insights/decisions | Yes | No |
 
 ### Obsidian Integration
 
