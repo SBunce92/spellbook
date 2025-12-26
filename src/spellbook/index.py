@@ -381,7 +381,8 @@ def list_entities_with_aliases(
 
     # Get canonical entities only (exclude entities that are aliases of others)
     if has_aliases:
-        # Only show entities that are NOT aliases of another entity
+        # Only show entities that are NOT aliases pointing to a DIFFERENT entity
+        # (self-referential aliases like "Samuel Bunce" -> "Samuel Bunce" are allowed)
         if entity_type:
             cursor = conn.execute(
                 """
@@ -390,6 +391,7 @@ def list_entities_with_aliases(
                   AND NOT EXISTS (
                     SELECT 1 FROM entity_aliases ea
                     WHERE ea.alias = e.name COLLATE NOCASE
+                      AND ea.canonical != e.name COLLATE NOCASE
                   )
                 ORDER BY e.type, e.name COLLATE NOCASE
                 """,
@@ -402,6 +404,7 @@ def list_entities_with_aliases(
                 WHERE NOT EXISTS (
                     SELECT 1 FROM entity_aliases ea
                     WHERE ea.alias = e.name COLLATE NOCASE
+                      AND ea.canonical != e.name COLLATE NOCASE
                 )
                 ORDER BY e.type, e.name COLLATE NOCASE
                 """
@@ -441,13 +444,14 @@ def list_entities_with_aliases(
         name = row["name"]
         etype = row["type"]
 
-        # Get aliases for this canonical entity
+        # Get aliases for this canonical entity (excluding self-referential alias)
         aliases: list[str] = []
         if has_aliases:
             alias_cursor = conn.execute(
                 """
                 SELECT alias FROM entity_aliases
                 WHERE canonical = ?
+                  AND alias != canonical COLLATE NOCASE
                 ORDER BY alias COLLATE NOCASE
                 """,
                 [name],
@@ -467,13 +471,12 @@ def list_entities_with_aliases(
     # Print grouped output, sorted by type name
     for etype in sorted(by_type.keys()):
         entity_list = by_type[etype]
-        console.print(f"[cyan]{etype}[/cyan] ({len(entity_list)}):")
+        console.print(f"[cyan]{etype}[/cyan]:")
 
         for name, aliases in entity_list:
             console.print(f"  {name}")
-            if aliases:
-                alias_str = ", ".join(aliases)
-                console.print(f"    [dim]aliases: {alias_str}[/dim]")
+            for alias in aliases:
+                console.print(f"    [dim]- {alias}[/dim]")
 
         console.print()
 

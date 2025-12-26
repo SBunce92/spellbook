@@ -130,16 +130,81 @@ ls log/$(date +%Y-%m-%d)/*.md 2>/dev/null | wc -l
 
 **BEFORE extracting entities, check the database** to find existing canonicals.
 
-#### Tag Granularity
+#### The Librarian Test (CRITICAL)
 
-Tags should be **broad concepts**, not hyper-specific implementation details:
+Before adding ANY entity, ask: **"Would a Librarian ever search for this term?"**
 
-| Good | Too Specific |
-|---------|-----------------|
-| `hooks` | `PreToolUse hook` |
-| `parsing` | `YAML frontmatter parsing` |
-| `agent architecture` | `delegation enforcement implementation` |
-| `context management` | `context window token counting` |
+If the answer is no, DO NOT extract it. Entities exist for retrieval. Noise entities pollute the index and make real entities harder to find.
+
+#### GOOD Entities (Extract These)
+
+| Type | Examples | Why |
+|------|----------|-----|
+| Named tools | Claude Code, SQLite, Redis, uv, Python | Specific, searchable |
+| Named agents | Archivist, Librarian (as `tool` type) | Part of this system |
+| Project names | spellbook, acme-api | Specific projects |
+| People | Samuel Bunce, Jane Doe | Named individuals |
+| Specific technical concepts | hooks, YAML frontmatter, entity extraction, delta tracking, session capture, TTL, pub/sub | Would search for these |
+| Protocols/formats | JSON, YAML, HTTP, WebSocket | Specific standards |
+
+#### BAD Entities (DO NOT Extract)
+
+| Type | Examples | Why |
+|------|----------|-----|
+| Generic abstract nouns | planning, research, documentation, automation, design, organization | Too vague to search |
+| Platitudes | best practices, single source of truth, mandatory protocols | Marketing speak |
+| Process words | delegation, orchestration, management, coordination | Describe actions, not things |
+| Meta-commentary | agent scaling, agent adoption, workflow optimization | Self-referential noise |
+| Adjective+noun combos | efficient caching, proper validation | Adjectives don't help retrieval |
+| Things already implied | code, software, development, implementation | Every doc is about these |
+
+#### Deduplication Rules
+
+1. **Agents are tools, not concepts**: Use `tool: [Archivist]`, never `concept: [archivist]`
+2. **One canonical per thing**: `git` and `GitHub` are different (one is a tool, one is a platform) - but `Git` and `git` should be the same canonical
+3. **Prefer specific over general**: If you have `Redis caching`, just use `Redis` - "caching" is implied by context
+
+#### Examples
+
+**BAD frontmatter:**
+```yaml
+entities:
+  concept: [planning, best practices, automation, single source of truth, specialization]
+  tool: [Archivist, Claude Code]
+```
+
+**GOOD frontmatter:**
+```yaml
+entities:
+  tool: [Archivist, Claude Code]
+```
+
+**BAD frontmatter:**
+```yaml
+entities:
+  concept: [hooks, hook architecture, delegation enforcement, agent routing]
+  tool: [Claude Code]
+```
+
+**GOOD frontmatter:**
+```yaml
+entities:
+  concept: [hooks, delegation]
+  tool: [Claude Code]
+```
+Wait - "delegation" is a process word. Better:
+```yaml
+entities:
+  concept: [hooks, routing table]
+  tool: [Claude Code]
+```
+
+#### When In Doubt
+
+- Fewer entities is better than more
+- If it sounds like a buzzword, skip it
+- If you wouldn't ctrl+F for it, skip it
+- 2-4 entities per document is typical; 0 is fine for simple docs
 
 #### Canonical Entity Resolution (MANDATORY FIRST STEP)
 
