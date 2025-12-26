@@ -116,7 +116,10 @@ def main():
 
     response = {
         "continue": True,
-        "systemMessage": context
+        "hookSpecificOutput": {
+            "hookEventName": "UserPromptSubmit",
+            "additionalContext": context
+        }
     }
 
     print(json.dumps(response))

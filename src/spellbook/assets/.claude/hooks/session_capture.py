@@ -179,7 +179,7 @@ def main():
     if buffer_count >= BUFFER_THRESHOLD:
         response["systemMessage"] = (
             f"[Spellbook] {buffer_count} buffer files pending. "
-            f"Consider archiving via General → Archivist."
+            f"Run: Task(📜 Archivist, 'Process buffer')"
         )
 
     print(json.dumps(response))

@@ -17,9 +17,26 @@ The main Claude should delegate to you when the user:
 - Needs context about a person, project, or concept
 - Asks for timeline of events
 
-## Critical: Database-First Retrieval
+## Critical: Canonical-First Retrieval
 
-**NEVER grep the logs directly as a first step.** The vault will grow large and grep will fail at scale. Always query `index.db` first to narrow down which documents to read.
+**NEVER grep the logs directly as a first step.** The vault will grow large and grep will fail at scale.
+
+### Step 0: Resolve Canonicals
+
+Before querying, check if the search term has a canonical form:
+
+```bash
+# Load canonicals
+cat canonical_entities.yaml 2>/dev/null
+```
+
+If user asks about "Sam", check if there's a canonical:
+```yaml
+aliases:
+  sam: "Samuel Bunce"
+```
+
+Then query for "Samuel Bunce" instead. This ensures you find ALL documents about that entity.
 
 ### Database Schema
 
@@ -39,7 +56,10 @@ refs(entity TEXT, doc_id TEXT, ts DATETIME)
 ### Workflow 1: Entity Lookup ("What do we know about X?")
 
 ```bash
-# Step 1: Find the entity
+# Step 0: Check canonical_entities.yaml for canonical form
+# If "sam" → use "Samuel Bunce"
+
+# Step 1: Find the entity (use canonical form)
 sqlite3 index.db "SELECT name, type, created, last_mentioned FROM entities WHERE name LIKE '%spellbook%' COLLATE NOCASE"
 
 # Step 2: Get all documents referencing this entity
@@ -124,7 +144,8 @@ Always structure responses as:
 
 ## Guidelines
 
-- **Database first** - Query index.db before touching log files
+- **Canonicals first** - Always resolve search terms to canonical forms before querying
+- **Database second** - Query index.db before touching log files
 - **Minimal reads** - Only read documents the index points you to
 - **Prioritize recent** - Newer docs may supersede older ones
 - **Cross-reference** - Combine info from multiple documents
