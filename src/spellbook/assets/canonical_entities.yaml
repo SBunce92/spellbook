@@ -1,0 +1,18 @@
+# Canonical Entity Registry
+# All keys are lowercase for case-insensitive matching
+# Archivist checks this before extracting entities
+# Librarian resolves aliases before querying
+
+aliases:
+  # People - map variants to canonical form
+  sam: "Samuel Bunce"
+  samuel: "Samuel Bunce"
+
+  # Projects
+  "spellbook vault": "spellbook"
+
+  # Tools - normalize casing/variants
+  "claude code": "Claude Code"
+  claude: "Claude Code"
+  sqlite3: "SQLite"
+  sqlite: "SQLite"
