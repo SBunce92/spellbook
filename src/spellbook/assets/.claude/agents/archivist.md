@@ -42,12 +42,18 @@ date +%Y-%m-%d
 ```
 **CRITICAL:** Always run this command first. Use the returned value for all dates. NEVER assume or guess the year - Claude's internal date can be wrong. The system date is the source of truth.
 
-### 1. Load Existing Entities
+### 1. Load Existing Entities and Aliases
 ```bash
+# Get all canonical entities
 sqlite3 index.db "SELECT e.name, e.type FROM entities e ORDER BY e.type, e.name" 2>/dev/null || echo "# No entities yet"
+
+# Get existing aliases (to check before creating new entities)
+sqlite3 index.db "SELECT alias, canonical, entity_type FROM entity_aliases ORDER BY entity_type, canonical" 2>/dev/null || echo "# No aliases yet"
 ```
 
-Review existing entities. You'll use these when tagging to ensure consistency.
+Review existing entities AND aliases. When processing transcripts:
+- If you see "sam" mentioned, check if it's already an alias for "Samuel Bunce"
+- Use canonical forms in frontmatter, not the raw text form
 
 ### 2. Read Buffer Files
 ```bash
@@ -135,82 +141,128 @@ Tags should be **broad concepts**, not hyper-specific implementation details:
 | `agent architecture` | `delegation enforcement implementation` |
 | `context management` | `context window token counting` |
 
-#### Canonical Matching via SQL
+#### Canonical Entity Resolution (MANDATORY FIRST STEP)
 
-When extracting entities, check if an alias already exists:
+For EVERY entity you plan to write to frontmatter, **first check if a canonical exists**:
 
 ```bash
 # Check if a term resolves to an existing canonical
-sqlite3 index.db "SELECT e.name FROM entities e JOIN entity_aliases a ON e.id = a.entity_id WHERE a.alias = 'jd' COLLATE NOCASE"
+sqlite3 index.db "SELECT canonical, entity_type FROM entity_aliases WHERE alias = 'sam' COLLATE NOCASE"
 ```
 
-If this returns a result (e.g., "Jane Doe"), use that canonical form in your document.
+- If result: Use the `canonical` value in frontmatter (e.g., "Samuel Bunce")
+- If no result: Check if this is a variation of an existing entity before creating new
 
-#### Creating New Entities with Aliases
+**Only write canonical forms to frontmatter, never aliases.**
 
-When you encounter a new entity that should be canonical, or a variant of an existing one:
+#### Detecting Entity Variations
+
+When processing transcripts, actively look for variations of the same entity:
+
+| Pattern | Example | Choose As Canonical |
+|---------|---------|---------------------|
+| Case variations | sam, Sam, SAM | Most formal: "Sam" |
+| Nicknames vs full | Sam, Samuel Bunce | Full name: "Samuel Bunce" |
+| Tool name variants | Claude Code, claude-code, CC | Official: "Claude Code" |
+| Abbreviations | JS, JavaScript | Full unless abbreviation is standard |
+| Spacing/punctuation | React Native, react-native | Official documentation form |
+
+**Principle:** The canonical should be the most complete, formal, or official form.
+
+#### Creating New Canonical Entities
+
+When you encounter a genuinely new entity (verified not a variation):
 
 ```bash
-# Option 1: New canonical entity (will auto-create alias for the name)
-sqlite3 index.db "INSERT INTO entities (name, type, created, last_mentioned) VALUES ('Jane Doe', 'person', datetime('now'), datetime('now'))"
+# 1. Create the canonical entity
+sqlite3 index.db "INSERT INTO entities (name, type, created, last_mentioned) VALUES ('Samuel Bunce', 'person', datetime('now'), datetime('now'))"
 
-# Get the entity_id
-sqlite3 index.db "SELECT id FROM entities WHERE name = 'Jane Doe'"
+# 2. Register the canonical as an alias to itself (for consistent lookups)
+sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, canonical, entity_type) VALUES ('Samuel Bunce', 'Samuel Bunce', 'person')"
 
-# Option 2: Add alias to existing entity (e.g., entity_id = 1)
-sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, entity_id) VALUES ('jane', 1)"
-sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, entity_id) VALUES ('JD', 1)"
+# 3. Register common variations as aliases
+sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, canonical, entity_type) VALUES ('Sam', 'Samuel Bunce', 'person')"
+sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, canonical, entity_type) VALUES ('sam', 'Samuel Bunce', 'person')"
 ```
 
-#### Avoid Tiny Variations
+**Always self-alias:** Register the canonical name as an alias to itself for consistent `get_canonical_name()` lookups.
 
-The goal is consistency, not compression. These are bad:
-```
-concept: [agent routing]    # Doc A
-concept: [agent-routing]    # Doc B
-concept: [Agent Routing]    # Doc C
+#### Adding Aliases to Existing Canonicals
+
+When you discover a new variation of an existing entity:
+
+```bash
+# Verify canonical exists
+sqlite3 index.db "SELECT name FROM entities WHERE name = 'Claude Code'"
+
+# Add the new alias pointing to that canonical
+sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, canonical, entity_type) VALUES ('CC', 'Claude Code', 'tool')"
+sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, canonical, entity_type) VALUES ('claude-code', 'Claude Code', 'tool')"
 ```
 
-Pick one canonical form and add aliases for variants.
+#### Avoid Creating Duplicate Canonicals
+
+Bad (creates separate entities that should be one):
+```yaml
+# Doc A frontmatter:
+person: [sam]
+# Doc B frontmatter:
+person: [Sam]
+# Doc C frontmatter:
+person: [Samuel Bunce]
+```
+
+Good (one canonical, consistent frontmatter):
+```yaml
+# All docs use canonical form:
+person: [Samuel Bunce]
+
+# Aliases registered in entity_aliases table:
+# alias="sam" -> canonical="Samuel Bunce", entity_type="person"
+# alias="Sam" -> canonical="Samuel Bunce", entity_type="person"
+# alias="Samuel Bunce" -> canonical="Samuel Bunce", entity_type="person"
+```
 
 ### 5. Update Index
 
 ```bash
-# Insert entity (gets auto-aliased by its canonical name)
+# Insert entity (upsert pattern)
 sqlite3 index.db "INSERT INTO entities (name, type, created, last_mentioned) VALUES ('EntityName', 'type', datetime('now'), datetime('now')) ON CONFLICT(name) DO UPDATE SET last_mentioned = datetime('now')"
 
-# Get entity_id for refs
-sqlite3 index.db "SELECT id FROM entities WHERE name = 'EntityName'"
+# Insert ref (uses entity name directly)
+sqlite3 index.db "INSERT OR IGNORE INTO refs (entity, doc_id, ts) VALUES ('EntityName', 'YYYY-MM-DD/NNN', datetime('now'))"
 
-# Insert ref (use entity_id, not name)
-sqlite3 index.db "INSERT OR IGNORE INTO refs (entity_id, doc_id, ts) VALUES (entity_id, 'YYYY-MM-DD/NNN', datetime('now'))"
+# Register alias for the canonical (including self-alias)
+sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, canonical, entity_type) VALUES ('EntityName', 'EntityName', 'type')"
 ```
 
 ### 6. Manage Aliases
 
-Entity aliases are stored in SQLite, not YAML. The canonical name is `entities.name`, and aliases point to it via `entity_id`.
+Entity aliases are stored in SQLite, not YAML. The schema uses:
+- `canonical` TEXT - points to `entities.name`
+- `entity_type` TEXT - denormalized for efficient lookup
 
-#### Check for Existing Aliases
+#### Check for Existing Aliases (Query First!)
 
 Before creating a new entity, check if the term is already an alias:
 
 ```bash
-sqlite3 index.db "SELECT e.name, e.type FROM entities e JOIN entity_aliases a ON e.id = a.entity_id WHERE a.alias = 'search_term' COLLATE NOCASE"
+sqlite3 index.db "SELECT canonical, entity_type FROM entity_aliases WHERE alias = 'search_term' COLLATE NOCASE"
 ```
 
-If this returns a result, use that canonical form in your document frontmatter.
+If this returns a result, use the `canonical` value in your document frontmatter.
 
 #### Adding New Aliases
 
 When you discover a variant of an existing entity:
 
 ```bash
-# Find the entity_id for the canonical form
-sqlite3 index.db "SELECT id FROM entities WHERE name = 'Jane Doe'"
-# Returns: 1
+# Verify the canonical exists first
+sqlite3 index.db "SELECT name FROM entities WHERE name = 'Jane Doe'"
 
-# Add the alias
-sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, entity_id) VALUES ('jane', 1)"
+# Add the alias pointing to that canonical
+sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, canonical, entity_type) VALUES ('jane', 'Jane Doe', 'person')"
+sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, canonical, entity_type) VALUES ('JD', 'Jane Doe', 'person')"
 ```
 
 #### Canonical Review Mode
@@ -222,9 +274,9 @@ When explicitly asked to "review canonicals" or "organize entities":
    sqlite3 index.db "
    SELECT e.name as canonical, e.type, GROUP_CONCAT(a.alias, ', ') as aliases, COUNT(DISTINCT r.doc_id) as refs
    FROM entities e
-   LEFT JOIN entity_aliases a ON e.id = a.entity_id
-   LEFT JOIN refs r ON e.id = r.entity_id
-   GROUP BY e.id
+   LEFT JOIN entity_aliases a ON a.canonical = e.name
+   LEFT JOIN refs r ON r.entity = e.name
+   GROUP BY e.name
    ORDER BY e.type, refs DESC"
    ```
 
@@ -234,21 +286,22 @@ When explicitly asked to "review canonicals" or "organize entities":
    - **Abbreviations**: `CC` vs `Claude Code`
    - **Name forms**: `JD` vs `Jane Doe`
 
-3. To merge duplicates:
+3. To merge duplicates (keep "Jane Doe", remove "JD" as separate canonical):
    ```bash
-   # Keep "Jane Doe" (id=1), merge "JD" (id=2) into it
-   # First, move aliases from id=2 to id=1
-   sqlite3 index.db "UPDATE entity_aliases SET entity_id = 1 WHERE entity_id = 2"
-   # Move refs
-   sqlite3 index.db "UPDATE OR IGNORE refs SET entity_id = 1 WHERE entity_id = 2"
+   # Point all aliases from old canonical to new canonical
+   sqlite3 index.db "UPDATE entity_aliases SET canonical = 'Jane Doe' WHERE canonical = 'JD'"
+   # Move refs to canonical form
+   sqlite3 index.db "UPDATE refs SET entity = 'Jane Doe' WHERE entity = 'JD'"
    # Delete the duplicate entity
-   sqlite3 index.db "DELETE FROM entities WHERE id = 2"
+   sqlite3 index.db "DELETE FROM entities WHERE name = 'JD'"
    ```
 
 #### Principles
 
+- **Query existing aliases FIRST**: Before any new entity, check `entity_aliases`
 - **Consistency over compression**: Don't merge distinct concepts
 - **Canonical = most complete/formal form**: "Jane Doe" not "jd"
+- **Self-alias all canonicals**: `INSERT (canonical, canonical, type)` for consistent lookups
 - **Preserve specificity**: `hooks` and `PreToolUse` can coexist if genuinely different
 - **User's vault, user's entities**: Use judgment based on THIS vault's context
 

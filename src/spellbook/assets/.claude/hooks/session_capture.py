@@ -254,8 +254,11 @@ def extract_usage_data(transcript_path: str, session_id: str) -> dict:
                                         }
 
                     # Extract Task tool results (subagent summaries)
+                    # NOTE: toolUseResult is at entry level, not block level
                     if entry_type == "user":
                         content = message.get("content", [])
+                        # toolUseResult is at entry level (top of JSONL line)
+                        tool_result = entry.get("toolUseResult", {})
                         if isinstance(content, list):
                             for block in content:
                                 if (
@@ -263,7 +266,6 @@ def extract_usage_data(transcript_path: str, session_id: str) -> dict:
                                     and block.get("type") == "tool_result"
                                 ):
                                     tool_use_id = block.get("tool_use_id")
-                                    tool_result = block.get("toolUseResult", {})
 
                                     # Check if this is a Task result with agentId
                                     if "agentId" in tool_result:
@@ -276,6 +278,8 @@ def extract_usage_data(transcript_path: str, session_id: str) -> dict:
                                             "subagent_type", "Unknown"
                                         )
                                         # Remove leading emoji + space if present
+                                        # Handle both actual Unicode emojis and escaped forms like \\U0001F916
+                                        agent_type = re.sub(r"^\\U[0-9A-Fa-f]+\s*", "", agent_type)
                                         agent_type = re.sub(r"^[^\w\s]+\s*", "", agent_type)
 
                                         subagent_call = {

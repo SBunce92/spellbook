@@ -27,10 +27,18 @@ CREATE TABLE IF NOT EXISTS refs (
     FOREIGN KEY (entity) REFERENCES entities(name)
 );
 
+CREATE TABLE IF NOT EXISTS entity_aliases (
+    alias TEXT PRIMARY KEY COLLATE NOCASE,
+    canonical TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    FOREIGN KEY (canonical) REFERENCES entities(name)
+);
+
 CREATE INDEX IF NOT EXISTS idx_refs_doc ON refs(doc_id);
 CREATE INDEX IF NOT EXISTS idx_refs_ts ON refs(ts DESC);
 CREATE INDEX IF NOT EXISTS idx_entities_type ON entities(type);
 CREATE INDEX IF NOT EXISTS idx_entities_last ON entities(last_mentioned DESC);
+CREATE INDEX IF NOT EXISTS idx_aliases_canonical ON entity_aliases(canonical);
 """
 
 # Context tracking schema (separate from entity schema for migration safety)
@@ -278,6 +286,68 @@ def _has_aliases_table(conn: sqlite3.Connection) -> bool:
     return cursor.fetchone() is not None
 
 
+def add_entity_alias(
+    conn: sqlite3.Connection,
+    alias: str,
+    canonical: str,
+    entity_type: str,
+) -> bool:
+    """Add an alias mapping for an entity.
+
+    Args:
+        conn: Database connection
+        alias: The alias name (e.g., "sam", "Sam")
+        canonical: The canonical name (e.g., "Samuel Bunce")
+        entity_type: Entity type (e.g., "person")
+
+    Returns:
+        True if alias was added, False if it already exists
+    """
+    try:
+        conn.execute(
+            """
+            INSERT INTO entity_aliases (alias, canonical, entity_type)
+            VALUES (?, ?, ?)
+            """,
+            [alias, canonical, entity_type],
+        )
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        # Alias already exists
+        return False
+
+
+def get_canonical_name(conn: sqlite3.Connection, name: str) -> str:
+    """Resolve an entity name to its canonical form.
+
+    If the name is an alias, returns the canonical name.
+    Otherwise, returns the name unchanged.
+    """
+    cursor = conn.execute(
+        """
+        SELECT canonical FROM entity_aliases
+        WHERE alias = ? COLLATE NOCASE
+        """,
+        [name],
+    )
+    row = cursor.fetchone()
+    return row["canonical"] if row else name
+
+
+def get_aliases_for_entity(conn: sqlite3.Connection, canonical: str) -> list[str]:
+    """Get all aliases for a canonical entity name."""
+    cursor = conn.execute(
+        """
+        SELECT alias FROM entity_aliases
+        WHERE canonical = ?
+        ORDER BY alias COLLATE NOCASE
+        """,
+        [canonical],
+    )
+    return [row["alias"] for row in cursor.fetchall()]
+
+
 def _get_entity_id_column(conn: sqlite3.Connection) -> str:
     """Determine the entity identifier column name.
 
@@ -296,6 +366,8 @@ def list_entities_with_aliases(
 
     Output is deterministic: sorted by type, then by canonical name.
     Aliases are sorted alphabetically under each entity.
+
+    Only shows canonical entities (those that are not aliases of another entity).
     """
     db_path = vault_path / "index.db"
     if not db_path.exists():
@@ -306,25 +378,52 @@ def list_entities_with_aliases(
     conn.row_factory = sqlite3.Row
 
     has_aliases = _has_aliases_table(conn)
-    id_col = _get_entity_id_column(conn)
 
-    # Build query based on schema version and filters
-    if entity_type:
-        cursor = conn.execute(
-            """
-            SELECT name, type FROM entities
-            WHERE type = ?
-            ORDER BY type, name COLLATE NOCASE
-            """,
-            [entity_type],
-        )
+    # Get canonical entities only (exclude entities that are aliases of others)
+    if has_aliases:
+        # Only show entities that are NOT aliases of another entity
+        if entity_type:
+            cursor = conn.execute(
+                """
+                SELECT e.name, e.type FROM entities e
+                WHERE e.type = ?
+                  AND NOT EXISTS (
+                    SELECT 1 FROM entity_aliases ea
+                    WHERE ea.alias = e.name COLLATE NOCASE
+                  )
+                ORDER BY e.type, e.name COLLATE NOCASE
+                """,
+                [entity_type],
+            )
+        else:
+            cursor = conn.execute(
+                """
+                SELECT e.name, e.type FROM entities e
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM entity_aliases ea
+                    WHERE ea.alias = e.name COLLATE NOCASE
+                )
+                ORDER BY e.type, e.name COLLATE NOCASE
+                """
+            )
     else:
-        cursor = conn.execute(
-            """
-            SELECT name, type FROM entities
-            ORDER BY type, name COLLATE NOCASE
-            """
-        )
+        # No aliases table - show all entities
+        if entity_type:
+            cursor = conn.execute(
+                """
+                SELECT name, type FROM entities
+                WHERE type = ?
+                ORDER BY type, name COLLATE NOCASE
+                """,
+                [entity_type],
+            )
+        else:
+            cursor = conn.execute(
+                """
+                SELECT name, type FROM entities
+                ORDER BY type, name COLLATE NOCASE
+                """
+            )
 
     entities = cursor.fetchall()
 
@@ -342,37 +441,18 @@ def list_entities_with_aliases(
         name = row["name"]
         etype = row["type"]
 
-        # Get aliases if the table exists
+        # Get aliases for this canonical entity
         aliases: list[str] = []
         if has_aliases:
-            if id_col == "id":
-                # Newer schema: lookup by entity id
-                id_cursor = conn.execute(
-                    "SELECT id FROM entities WHERE name = ?", [name]
-                )
-                id_row = id_cursor.fetchone()
-                if id_row:
-                    alias_cursor = conn.execute(
-                        """
-                        SELECT alias FROM entity_aliases
-                        WHERE entity_id = ? AND alias != ?
-                        ORDER BY alias COLLATE NOCASE
-                        """,
-                        [id_row["id"], name],
-                    )
-                    aliases = [r["alias"] for r in alias_cursor.fetchall()]
-            else:
-                # Schema with name as PK but aliases table exists
-                alias_cursor = conn.execute(
-                    """
-                    SELECT alias FROM entity_aliases
-                    WHERE entity_id = (SELECT rowid FROM entities WHERE name = ?)
-                      AND alias != ?
-                    ORDER BY alias COLLATE NOCASE
-                    """,
-                    [name, name],
-                )
-                aliases = [r["alias"] for r in alias_cursor.fetchall()]
+            alias_cursor = conn.execute(
+                """
+                SELECT alias FROM entity_aliases
+                WHERE canonical = ?
+                ORDER BY alias COLLATE NOCASE
+                """,
+                [name],
+            )
+            aliases = [r["alias"] for r in alias_cursor.fetchall()]
 
         if etype not in by_type:
             by_type[etype] = []
@@ -405,10 +485,16 @@ def rebuild_index(vault_path: Path) -> None:
 
     console.print("\n[bold]Rebuilding index...[/bold]\n")
 
-    # Remove existing database
-    db_path.unlink(missing_ok=True)
-
     conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+
+    # Drop only entity tables (preserves context tables: sessions, subagent_calls)
+    conn.execute("DROP TABLE IF EXISTS refs")
+    conn.execute("DROP TABLE IF EXISTS entity_aliases")
+    conn.execute("DROP TABLE IF EXISTS entities")
+    conn.commit()
+
+    # Recreate entity schema
     init_schema(conn)
 
     doc_count = 0
