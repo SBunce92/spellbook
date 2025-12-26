@@ -9,8 +9,8 @@ instructions to load those reference files before proceeding with the task.
 Input JSON:
 {
     "session_id": "...",
-    "subagent_type": "agent name (e.g., '📜 Archivist')",
-    "prompt": "original prompt from Task call",
+    "subagent_name": "agent name (e.g., '📜 Archivist')",
+    "subagent_prompt": "original prompt from Task call",
     "cwd": "/path/to/vault",
     "hook_event_name": "SubagentStart"
 }
@@ -18,7 +18,10 @@ Input JSON:
 Output JSON:
 {
     "continue": true,
-    "prompt": "modified prompt with reference loading instructions"
+    "hookSpecificOutput": {
+        "hookEventName": "SubagentStart",
+        "modifiedPrompt": "modified prompt with reference loading instructions"
+    }
 }
 """
 
@@ -175,8 +178,8 @@ def main():
         return
 
     cwd = Path(hook_input.get("cwd", "."))
-    subagent_type = hook_input.get("subagent_type", "")
-    original_prompt = hook_input.get("prompt", "")
+    subagent_type = hook_input.get("subagent_name", "")
+    original_prompt = hook_input.get("subagent_prompt", "")
 
     # Find vault root
     vault = find_vault_root(cwd)
@@ -197,7 +200,13 @@ def main():
     prefix = build_reference_prefix(references)
     modified_prompt = prefix + original_prompt
 
-    response = {"continue": True, "prompt": modified_prompt}
+    response = {
+        "continue": True,
+        "hookSpecificOutput": {
+            "hookEventName": "SubagentStart",
+            "modifiedPrompt": modified_prompt
+        }
+    }
     print(json.dumps(response))
 
 
