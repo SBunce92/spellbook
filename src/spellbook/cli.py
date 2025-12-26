@@ -125,7 +125,13 @@ def cc(resume: bool, cont: bool, safe: bool, args: tuple):
     cmd.extend(args)
 
     os.chdir(vault_path)
-    console.print(f"[dim]Launching Claude in {vault_path}[/dim]\n")
+
+    # Display spellbook banner with details
+    console.print(f"\n📖 [bold magenta]Spellbook[/bold magenta] [dim]v{__version__}[/dim]")
+    console.print(f"[dim]   vault:[/dim]  {vault_path}")
+    console.print(f"[dim]   cmd:[/dim]    {' '.join(cmd)}")
+    console.print()
+
     subprocess.run(cmd)
 
 
