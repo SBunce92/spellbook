@@ -106,3 +106,43 @@ class SpellbookConfig(BaseModel):
     vault_dir: str
     created: datetime
     last_updated: datetime
+
+
+# =============================================================================
+# Context/Usage Tracking Schema
+# =============================================================================
+
+
+class SessionUsage(BaseModel):
+    """Session-level token usage summary."""
+
+    id: str  # Session UUID
+    vault_path: str
+    started_at: datetime
+    ended_at: Optional[datetime] = None
+    total_input_tokens: int = 0
+    total_output_tokens: int = 0
+    total_cache_creation: int = 0
+    total_cache_read: int = 0
+    total_messages: int = 0
+    slug: Optional[str] = None  # Human-readable session name
+
+
+class SubagentCall(BaseModel):
+    """Token usage for a single subagent invocation."""
+
+    session_id: str
+    agent_id: str  # Short hex ID (e.g., "afb88bb")
+    agent_type: str  # "Archivist", "Backend", etc.
+    description: Optional[str] = None
+    prompt_preview: Optional[str] = None  # First 200 chars of prompt
+    started_at: datetime
+    ended_at: Optional[datetime] = None
+    duration_ms: Optional[int] = None
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cache_creation: int = 0
+    cache_read: int = 0
+    total_tokens: int = 0
+    tool_use_count: int = 0
+    status: str = "running"  # running, completed, failed
