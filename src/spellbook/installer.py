@@ -313,20 +313,6 @@ def _copy_managed_assets(
                     else:
                         console.print(f"  [green]\u2713[/green] .claude/{subdir}/{src_file.name}")
 
-    # Copy root-level config files (canonical_entities.yaml, etc.) to vault root
-    root_configs = ["canonical_entities.yaml"]
-    for config_name in root_configs:
-        src_config = assets_path / config_name
-        if src_config.exists():
-            dest_config = vault_path / config_name
-            # Only copy if doesn't exist (user may have customized)
-            if not dest_config.exists():
-                shutil.copy2(src_config, dest_config)
-                if report:
-                    new.append(config_name)
-                else:
-                    console.print(f"  [green]✓[/green] {config_name}")
-
     return updated, new
 
 

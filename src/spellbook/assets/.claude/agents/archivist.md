@@ -151,17 +151,65 @@ Pick one canonical form and reuse it.
 sqlite3 index.db "INSERT INTO entities (name, type, doc_path, last_mentioned) VALUES (...)"
 ```
 
-### 6. Update Canonicals (If New Entities)
+### 6. Manage Canonicals
 
-If you created new entity tags that should become canonicals, append to `canonical_entities.yaml`:
+The `canonical_entities.yaml` file lives in the vault root and is **created and maintained by you**, not shipped with spellbook.
 
-```yaml
-# Example additions
-aliases:
-  "new alias": "Canonical Form"
+#### First Time (File Doesn't Exist)
+
+If the vault has entities in index.db but no canonical_entities.yaml:
+
+```bash
+# Check for existing entities
+sqlite3 index.db "SELECT type, name FROM entities ORDER BY type, name"
 ```
 
-Only add entries when establishing a new canonical or adding an alias to an existing one.
+If you see variants of the same entity (e.g., `sam`, `Samuel Bunce`, `Sam`), create the file:
+
+```yaml
+# canonical_entities.yaml
+# Entity alias mappings - maintained by Archivist
+# Format: alias → canonical form
+
+aliases:
+  # Person variants
+  sam: "Samuel Bunce"
+  samuel: "Samuel Bunce"
+
+  # Tool variants
+  claude: "Claude Code"
+  sqlite: "SQLite"
+```
+
+#### During Normal Archiving
+
+When extracting entities:
+- Check if a variant of an existing canonical exists
+- If yes → use the canonical form
+- If new entity → add to the document, consider if it needs a canonical entry
+
+#### Canonical Review Mode
+
+When explicitly asked to "review canonicals" or "organize entities":
+
+1. Query all entities: `sqlite3 index.db "SELECT type, name, COUNT(*) as refs FROM entities e JOIN refs r ON e.name = r.entity GROUP BY e.name ORDER BY type, refs DESC"`
+
+2. Look for:
+   - **Case variants**: `sam` vs `Sam` vs `SAM`
+   - **Spacing/punctuation**: `Claude Code` vs `claude-code`
+   - **Abbreviations**: `CC` vs `Claude Code`
+   - **Name forms**: `Sam` vs `Samuel Bunce`
+
+3. Group semantically equivalent entities → propose canonical form
+
+4. Update canonical_entities.yaml with new mappings
+
+#### Principles
+
+- **Consistency over compression**: Don't merge distinct concepts
+- **Canonical = most complete/formal form**: "Samuel Bunce" not "sam"
+- **Preserve specificity**: `hooks` and `PreToolUse` can coexist if genuinely different
+- **User's vault, user's entities**: Use judgment based on THIS vault's context
 
 ### 7. Clean Up
 
