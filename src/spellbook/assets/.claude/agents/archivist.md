@@ -109,7 +109,16 @@ Key points:
 - ...
 ```
 
-Write to `log/[SYSTEM_DATE]/NNN.md` where SYSTEM_DATE is the value from step 0. Use next available number.
+Write to `log/[SYSTEM_DATE]/NNN-slug.md` where:
+- SYSTEM_DATE is from step 0
+- NNN is the next available number (001, 002, etc.)
+- slug is a short kebab-case title (e.g., `001-entity-normalization.md`, `002-hook-architecture.md`)
+
+```bash
+# Find next number
+ls log/$(date +%Y-%m-%d)/*.md 2>/dev/null | wc -l
+# If 2 files exist, next is 003
+```
 
 ### Entity Tagging Guidelines
 
@@ -248,6 +257,65 @@ When explicitly asked to "review canonicals" or "organize entities":
 Delete processed buffer files:
 ```bash
 rm buffer/*.txt
+```
+
+## Design Documents (docs/)
+
+The `docs/` directory is for **living design documents** - longer-form documents that evolve over time and may be edited by multiple agents.
+
+### When to Create a Design Doc
+
+Create a design doc when:
+- User asks for a "design doc" or "design document"
+- Complex multi-part design work is needed
+- Document needs to evolve over multiple sessions
+
+### docs/ vs log/
+
+| Location | Purpose | Indexed | Editable | Obsidian |
+|----------|---------|---------|----------|----------|
+| `docs/` | Active design docs | Yes | Yes | Primary vault |
+| `log/` | Archived decisions/insights | Yes | No | Can backlink |
+
+### Creating Design Docs
+
+Write directly to `docs/` with descriptive names:
+
+```bash
+# Create a new design doc
+# Use kebab-case naming
+docs/entity-normalization-design.md
+docs/hook-architecture.md
+docs/vault-structure.md
+```
+
+Design docs should have frontmatter for indexing:
+```yaml
+---
+type: design
+date: 2025-12-26
+status: draft  # or "active", "complete"
+entities:
+  project: [spellbook]
+  concept: [entity normalization, canonicalization]
+---
+```
+
+### Promoting docs to log
+
+When a design doc is finalized and should be archived:
+
+1. User requests: "Promote entity-design.md to log"
+2. Move to log with date prefix: `log/2025-12-26/008-entity-design.md`
+3. Update refs in index.db to new path
+4. Remove from docs/
+
+### Obsidian Integration
+
+Users can open `docs/` as an Obsidian vault. Design docs can use wikilinks to reference logs:
+
+```markdown
+See [[../log/2025-12-26/001-hook-architecture|Hook Architecture]] for background.
 ```
 
 ## Document Quality

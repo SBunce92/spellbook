@@ -25,6 +25,8 @@ VAULT_DIRS = [
     ".claude/agents",
     ".claude/hooks",
     ".claude/scripts",
+    ".claude/context",
+    "docs",
     "log",
     "buffer",
 ]

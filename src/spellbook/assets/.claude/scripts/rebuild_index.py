@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Standalone script to rebuild index.db from log documents."""
+"""Standalone script to rebuild index.db from log and docs documents."""
 
 import sqlite3
 import sys
@@ -7,6 +7,9 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
+
+# Directories to scan for documents
+DOC_DIRS = ["log", "docs"]
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS entities (
@@ -73,12 +76,13 @@ def parse_entities(raw_entities) -> list[tuple[str, str]]:
 
 
 def rebuild(vault_path: Path) -> None:
-    """Rebuild index.db from log documents."""
+    """Rebuild index.db from log and docs documents."""
     db_path = vault_path / "index.db"
-    log_path = vault_path / "log"
 
-    if not log_path.exists():
-        print(f"Error: log/ directory not found at {vault_path}")
+    # Check at least one doc directory exists
+    existing_dirs = [d for d in DOC_DIRS if (vault_path / d).exists()]
+    if not existing_dirs:
+        print(f"Error: No document directories (log/, docs/) found at {vault_path}")
         sys.exit(1)
 
     # Remove existing database
@@ -91,67 +95,74 @@ def rebuild(vault_path: Path) -> None:
     entity_count = 0
     errors = 0
 
-    for doc_file in sorted(log_path.glob("**/*.md")):
-        content = doc_file.read_text()
-        frontmatter = parse_frontmatter(content)
-
-        if not frontmatter:
-            print(f"  ! {doc_file.relative_to(vault_path)} (no frontmatter)")
-            errors += 1
+    # Scan all document directories
+    for dir_name in DOC_DIRS:
+        dir_path = vault_path / dir_name
+        if not dir_path.exists():
             continue
 
-        doc_id = frontmatter.get("id", doc_file.stem)
-        # Accept both 'ts' and 'date' fields
-        ts = frontmatter.get("ts") or frontmatter.get("date")
+        for doc_file in sorted(dir_path.glob("**/*.md")):
+            content = doc_file.read_text()
+            frontmatter = parse_frontmatter(content)
 
-        if not ts:
-            print(f"  ! {doc_file.relative_to(vault_path)} (no timestamp)")
-            errors += 1
-            continue
+            if not frontmatter:
+                print(f"  ! {doc_file.relative_to(vault_path)} (no frontmatter)")
+                errors += 1
+                continue
 
-        # Parse entities from either format
-        entities = parse_entities(frontmatter.get("entities", []))
+            # Use relative path as doc_id for better identification
+            doc_id = str(doc_file.relative_to(vault_path))
+            # Accept both 'ts' and 'date' fields
+            ts = frontmatter.get("ts") or frontmatter.get("date")
 
-        for name, etype in entities:
-            # Insert or update entity
-            conn.execute(
-                """
-                INSERT INTO entities (name, type, created, last_mentioned)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT(name) DO UPDATE SET
-                    last_mentioned = excluded.last_mentioned
-                """,
-                [name, etype, ts, ts],
-            )
+            if not ts:
+                print(f"  ! {doc_file.relative_to(vault_path)} (no timestamp)")
+                errors += 1
+                continue
 
-            # Get entity id
-            cursor = conn.execute(
-                "SELECT id FROM entities WHERE name = ?", [name]
-            )
-            entity_id = cursor.fetchone()[0]
+            # Parse entities from either format
+            entities = parse_entities(frontmatter.get("entities", []))
 
-            # Add canonical name as an alias (if not exists)
-            conn.execute(
-                """
-                INSERT OR IGNORE INTO entity_aliases (alias, entity_id)
-                VALUES (?, ?)
-                """,
-                [name, entity_id],
-            )
+            for name, etype in entities:
+                # Insert or update entity
+                conn.execute(
+                    """
+                    INSERT INTO entities (name, type, created, last_mentioned)
+                    VALUES (?, ?, ?, ?)
+                    ON CONFLICT(name) DO UPDATE SET
+                        last_mentioned = excluded.last_mentioned
+                    """,
+                    [name, etype, ts, ts],
+                )
 
-            # Insert ref using entity_id
-            conn.execute(
-                """
-                INSERT OR IGNORE INTO refs (entity_id, doc_id, ts)
-                VALUES (?, ?, ?)
-                """,
-                [entity_id, doc_id, ts],
-            )
+                # Get entity id
+                cursor = conn.execute(
+                    "SELECT id FROM entities WHERE name = ?", [name]
+                )
+                entity_id = cursor.fetchone()[0]
 
-            entity_count += 1
+                # Add canonical name as an alias (if not exists)
+                conn.execute(
+                    """
+                    INSERT OR IGNORE INTO entity_aliases (alias, entity_id)
+                    VALUES (?, ?)
+                    """,
+                    [name, entity_id],
+                )
 
-        doc_count += 1
-        print(f"  + {doc_file.relative_to(vault_path)}")
+                # Insert ref using entity_id
+                conn.execute(
+                    """
+                    INSERT OR IGNORE INTO refs (entity_id, doc_id, ts)
+                    VALUES (?, ?, ?)
+                    """,
+                    [entity_id, doc_id, ts],
+                )
+
+                entity_count += 1
+
+            doc_count += 1
+            print(f"  + {doc_file.relative_to(vault_path)}")
 
     conn.commit()
 
