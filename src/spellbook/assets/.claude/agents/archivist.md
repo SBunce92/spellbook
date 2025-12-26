@@ -259,60 +259,66 @@ Delete processed buffer files:
 rm buffer/*.txt
 ```
 
-## Design Documents (docs/)
+## Design Documents
 
-The `docs/` directory is for **living design documents** - longer-form documents that evolve over time and may be edited by multiple agents.
+Design docs are longer-form documents that evolve over time. They follow a promotion pattern:
 
-### When to Create a Design Doc
-
-Create a design doc when:
-- User asks for a "design doc" or "design document"
-- Complex multi-part design work is needed
-- Document needs to evolve over multiple sessions
-
-### docs/ vs log/
-
-| Location | Purpose | Indexed | Editable | Obsidian |
-|----------|---------|---------|----------|----------|
-| `docs/` | Active design docs | Yes | Yes | Primary vault |
-| `log/` | Archived decisions/insights | Yes | No | Can backlink |
+```
+buffer/*.md → docs/ → log/
+   (draft)   (active)  (archived)
+```
 
 ### Creating Design Docs
 
-Write directly to `docs/` with descriptive names:
+When user asks for a "design doc" or complex multi-part design:
 
-```bash
-# Create a new design doc
-# Use kebab-case naming
-docs/entity-normalization-design.md
-docs/hook-architecture.md
-docs/vault-structure.md
-```
+1. Create in buffer/ with descriptive name:
+   ```bash
+   buffer/entity-normalization-design.md
+   ```
 
-Design docs should have frontmatter for indexing:
-```yaml
----
-type: design
-date: 2025-12-26
-status: draft  # or "active", "complete"
-entities:
-  project: [spellbook]
-  concept: [entity normalization, canonicalization]
----
-```
+2. Include frontmatter:
+   ```yaml
+   ---
+   type: design
+   date: 2025-12-26
+   status: draft
+   entities:
+     project: [spellbook]
+     concept: [entity normalization]
+   ---
+   ```
 
-### Promoting docs to log
+3. Work on it across sessions - buffer/*.md files are preserved (not deleted like .txt)
+
+### Promoting to docs/
+
+When a design doc is ready to be "active" (shared, indexed, in Obsidian):
+
+1. User requests: "Promote entity-design.md to docs"
+2. Move: `mv buffer/entity-design.md docs/entity-design.md`
+3. Update status in frontmatter: `status: active`
+
+### Promoting to log/
 
 When a design doc is finalized and should be archived:
 
 1. User requests: "Promote entity-design.md to log"
 2. Move to log with date prefix: `log/2025-12-26/008-entity-design.md`
-3. Update refs in index.db to new path
+3. Update status: `status: archived`
 4. Remove from docs/
+
+### Directory Purposes
+
+| Location | Purpose | Indexed | Editable | Obsidian |
+|----------|---------|---------|----------|----------|
+| `buffer/*.md` | Draft design docs | No | Yes | No |
+| `docs/` | Active design docs | Yes | Yes | Primary vault |
+| `log/` | Archived documents | Yes | No | Can backlink |
 
 ### Obsidian Integration
 
-Users can open `docs/` as an Obsidian vault. Design docs can use wikilinks to reference logs:
+Users can open `docs/` as an Obsidian vault. Design docs can use wikilinks:
 
 ```markdown
 See [[../log/2025-12-26/001-hook-architecture|Hook Architecture]] for background.
