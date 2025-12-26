@@ -112,7 +112,7 @@ Documents in `log/` tag entities in YAML frontmatter:
 type: decision
 date: 2025-12-24
 entities:
-  person: [Samuel Bunce]
+  person: [Jane Doe]
   project: [spellbook]
   tool: [Claude Code]
   concept: [knowledge graphs]

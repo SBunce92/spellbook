@@ -21,16 +21,38 @@ The main Claude should delegate to you when the user:
 
 **NEVER grep the logs directly as a first step.** The vault will grow large and grep will fail at scale.
 
-### Step 0: Resolve Aliases to Canonical Names
-
-Before querying, check if the search term has a canonical form via the `entity_aliases` table:
+### Step 0: Load All Canonicals (MANDATORY FIRST STEP)
 
 ```bash
-# Resolve alias to canonical name
-sqlite3 index.db "SELECT e.name, e.id FROM entities e JOIN entity_aliases a ON e.id = a.entity_id WHERE a.alias = 'sam' COLLATE NOCASE"
+sqlite3 index.db "
+SELECT e.name as canonical, e.type, GROUP_CONCAT(a.alias, '|') as aliases
+FROM entities e
+LEFT JOIN entity_aliases a ON e.id = a.entity_id
+GROUP BY e.id
+ORDER BY e.type, e.name"
 ```
 
-If user asks about "Sam" and this returns "Samuel Bunce|1", use that canonical name and entity_id for subsequent queries. This ensures you find ALL documents about that entity.
+This gives you the full alias map. Example output:
+```
+Jane Doe|person|Jane Doe|jane|JD
+myproject|project|myproject|MyProject
+Claude Code|tool|Claude Code|claude|CC
+```
+
+**Keep this loaded** - use it to resolve any user query term to its canonical form before querying refs.
+
+### Step 1: Resolve Query Terms
+
+When the user asks about something, check your loaded canonicals:
+- User asks about "jane" → canonical is "Jane Doe"
+- User asks about "CC" → canonical is "Claude Code"
+
+Then query using the canonical:
+
+```bash
+# Get entity_id for the canonical name
+sqlite3 index.db "SELECT id FROM entities WHERE name = 'Jane Doe'"
+```
 
 ### Database Schema
 
@@ -54,8 +76,8 @@ refs(entity_id INTEGER, doc_id TEXT, ts DATETIME)
 
 ```bash
 # Step 0: Resolve alias to canonical (handles case-insensitive matching)
-sqlite3 index.db "SELECT e.name, e.id, e.type FROM entities e JOIN entity_aliases a ON e.id = a.entity_id WHERE a.alias = 'sam' COLLATE NOCASE"
-# Returns: Samuel Bunce|1|person
+sqlite3 index.db "SELECT e.name, e.id, e.type FROM entities e JOIN entity_aliases a ON e.id = a.entity_id WHERE a.alias = 'jane' COLLATE NOCASE"
+# Returns: Jane Doe|1|person
 
 # Step 1: If no alias match, search entities directly
 sqlite3 index.db "SELECT id, name, type, created, last_mentioned FROM entities WHERE name LIKE '%spellbook%' COLLATE NOCASE"
@@ -129,7 +151,7 @@ Documents are in `log/YYYY-MM-DD/NNN.md` with YAML frontmatter:
 type: decision | insight | code | reference
 date: 2025-12-24
 entities:
-  person: [Samuel Bunce]
+  person: [Jane Doe]
   project: [spellbook]
   tool: [Claude Code]
 ---

@@ -132,10 +132,10 @@ When extracting entities, check if an alias already exists:
 
 ```bash
 # Check if a term resolves to an existing canonical
-sqlite3 index.db "SELECT e.name FROM entities e JOIN entity_aliases a ON e.id = a.entity_id WHERE a.alias = 'sam' COLLATE NOCASE"
+sqlite3 index.db "SELECT e.name FROM entities e JOIN entity_aliases a ON e.id = a.entity_id WHERE a.alias = 'jd' COLLATE NOCASE"
 ```
 
-If this returns a result (e.g., "Samuel Bunce"), use that canonical form in your document.
+If this returns a result (e.g., "Jane Doe"), use that canonical form in your document.
 
 #### Creating New Entities with Aliases
 
@@ -143,14 +143,14 @@ When you encounter a new entity that should be canonical, or a variant of an exi
 
 ```bash
 # Option 1: New canonical entity (will auto-create alias for the name)
-sqlite3 index.db "INSERT INTO entities (name, type, created, last_mentioned) VALUES ('Samuel Bunce', 'person', datetime('now'), datetime('now'))"
+sqlite3 index.db "INSERT INTO entities (name, type, created, last_mentioned) VALUES ('Jane Doe', 'person', datetime('now'), datetime('now'))"
 
 # Get the entity_id
-sqlite3 index.db "SELECT id FROM entities WHERE name = 'Samuel Bunce'"
+sqlite3 index.db "SELECT id FROM entities WHERE name = 'Jane Doe'"
 
 # Option 2: Add alias to existing entity (e.g., entity_id = 1)
-sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, entity_id) VALUES ('sam', 1)"
-sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, entity_id) VALUES ('Sam', 1)"
+sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, entity_id) VALUES ('jane', 1)"
+sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, entity_id) VALUES ('JD', 1)"
 ```
 
 #### Avoid Tiny Variations
@@ -197,11 +197,11 @@ When you discover a variant of an existing entity:
 
 ```bash
 # Find the entity_id for the canonical form
-sqlite3 index.db "SELECT id FROM entities WHERE name = 'Samuel Bunce'"
+sqlite3 index.db "SELECT id FROM entities WHERE name = 'Jane Doe'"
 # Returns: 1
 
 # Add the alias
-sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, entity_id) VALUES ('sam', 1)"
+sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, entity_id) VALUES ('jane', 1)"
 ```
 
 #### Canonical Review Mode
@@ -220,14 +220,14 @@ When explicitly asked to "review canonicals" or "organize entities":
    ```
 
 2. Look for duplicate canonicals that should be merged:
-   - **Case variants**: `sam` vs `Sam` vs `SAM` (should be aliases, not separate entities)
+   - **Case variants**: `jane` vs `Jane` vs `JANE` (should be aliases, not separate entities)
    - **Spacing/punctuation**: `Claude Code` vs `claude-code`
    - **Abbreviations**: `CC` vs `Claude Code`
-   - **Name forms**: `Sam` vs `Samuel Bunce`
+   - **Name forms**: `JD` vs `Jane Doe`
 
 3. To merge duplicates:
    ```bash
-   # Keep "Samuel Bunce" (id=1), merge "Sam" (id=2) into it
+   # Keep "Jane Doe" (id=1), merge "JD" (id=2) into it
    # First, move aliases from id=2 to id=1
    sqlite3 index.db "UPDATE entity_aliases SET entity_id = 1 WHERE entity_id = 2"
    # Move refs
@@ -239,7 +239,7 @@ When explicitly asked to "review canonicals" or "organize entities":
 #### Principles
 
 - **Consistency over compression**: Don't merge distinct concepts
-- **Canonical = most complete/formal form**: "Samuel Bunce" not "sam"
+- **Canonical = most complete/formal form**: "Jane Doe" not "jd"
 - **Preserve specificity**: `hooks` and `PreToolUse` can coexist if genuinely different
 - **User's vault, user's entities**: Use judgment based on THIS vault's context
 
