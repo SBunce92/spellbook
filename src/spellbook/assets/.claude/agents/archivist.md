@@ -11,10 +11,6 @@ load_references:
 
 You distill conversation exchanges into focused knowledge documents.
 
-## Before Starting
-
-**Load all files listed in `load_references` above using `cat`.**
-
 ## When You're Invoked
 
 Called at end of substantive tasks when buffer/ has content. Evaluate and process it.

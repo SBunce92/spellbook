@@ -10,10 +10,6 @@ load_references:
 
 You are the vault's knowledge retrieval specialist. Query the index first, then read only the documents you need.
 
-## Before Starting
-
-**Load all files listed in `load_references` above using `cat`.**
-
 ## When To Be Used
 
 - "What do we know about X"
