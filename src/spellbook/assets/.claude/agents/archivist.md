@@ -42,12 +42,12 @@ date +%Y-%m-%d
 ```
 **CRITICAL:** Always run this command first. Use the returned value for all dates. NEVER assume or guess the year - Claude's internal date can be wrong. The system date is the source of truth.
 
-### 1. Load Canonicals
+### 1. Load Existing Entities
 ```bash
-cat canonical_entities.yaml 2>/dev/null || echo "# No canonicals yet"
+sqlite3 index.db "SELECT e.name, e.type FROM entities e ORDER BY e.type, e.name" 2>/dev/null || echo "# No entities yet"
 ```
 
-Review existing canonical entities. You'll use these when tagging to ensure consistency.
+Review existing entities. You'll use these when tagging to ensure consistency.
 
 ### 2. Read Buffer Files
 ```bash
@@ -113,26 +113,45 @@ Write to `log/[SYSTEM_DATE]/NNN.md` where SYSTEM_DATE is the value from step 0. 
 
 ### Entity Tagging Guidelines
 
-**BEFORE extracting entities, read `canonical_entities.yaml`** (if it exists) to check existing canonicals.
+**BEFORE extracting entities, check the database** to find existing canonicals.
 
 #### Tag Granularity
 
 Tags should be **broad concepts**, not hyper-specific implementation details:
 
-| ✅ Good | ❌ Too Specific |
+| Good | Too Specific |
 |---------|-----------------|
 | `hooks` | `PreToolUse hook` |
 | `parsing` | `YAML frontmatter parsing` |
 | `agent architecture` | `delegation enforcement implementation` |
 | `context management` | `context window token counting` |
 
-#### Canonical Matching
+#### Canonical Matching via SQL
 
-When extracting entities:
-1. Check if the concept already exists in `canonical_entities.yaml`
-2. If a match exists → use the canonical form exactly
-3. If no match → create new tag (broad concept level)
-4. When unsure → prefer creating new (avoid false merges)
+When extracting entities, check if an alias already exists:
+
+```bash
+# Check if a term resolves to an existing canonical
+sqlite3 index.db "SELECT e.name FROM entities e JOIN entity_aliases a ON e.id = a.entity_id WHERE a.alias = 'sam' COLLATE NOCASE"
+```
+
+If this returns a result (e.g., "Samuel Bunce"), use that canonical form in your document.
+
+#### Creating New Entities with Aliases
+
+When you encounter a new entity that should be canonical, or a variant of an existing one:
+
+```bash
+# Option 1: New canonical entity (will auto-create alias for the name)
+sqlite3 index.db "INSERT INTO entities (name, type, created, last_mentioned) VALUES ('Samuel Bunce', 'person', datetime('now'), datetime('now'))"
+
+# Get the entity_id
+sqlite3 index.db "SELECT id FROM entities WHERE name = 'Samuel Bunce'"
+
+# Option 2: Add alias to existing entity (e.g., entity_id = 1)
+sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, entity_id) VALUES ('sam', 1)"
+sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, entity_id) VALUES ('Sam', 1)"
+```
 
 #### Avoid Tiny Variations
 
@@ -143,66 +162,79 @@ concept: [agent-routing]    # Doc B
 concept: [Agent Routing]    # Doc C
 ```
 
-Pick one canonical form and reuse it.
+Pick one canonical form and add aliases for variants.
 
 ### 5. Update Index
 
 ```bash
-sqlite3 index.db "INSERT INTO entities (name, type, doc_path, last_mentioned) VALUES (...)"
+# Insert entity (gets auto-aliased by its canonical name)
+sqlite3 index.db "INSERT INTO entities (name, type, created, last_mentioned) VALUES ('EntityName', 'type', datetime('now'), datetime('now')) ON CONFLICT(name) DO UPDATE SET last_mentioned = datetime('now')"
+
+# Get entity_id for refs
+sqlite3 index.db "SELECT id FROM entities WHERE name = 'EntityName'"
+
+# Insert ref (use entity_id, not name)
+sqlite3 index.db "INSERT OR IGNORE INTO refs (entity_id, doc_id, ts) VALUES (entity_id, 'YYYY-MM-DD/NNN', datetime('now'))"
 ```
 
-### 6. Manage Canonicals
+### 6. Manage Aliases
 
-The `canonical_entities.yaml` file lives in the vault root and is **created and maintained by you**, not shipped with spellbook.
+Entity aliases are stored in SQLite, not YAML. The canonical name is `entities.name`, and aliases point to it via `entity_id`.
 
-#### First Time (File Doesn't Exist)
+#### Check for Existing Aliases
 
-If the vault has entities in index.db but no canonical_entities.yaml:
+Before creating a new entity, check if the term is already an alias:
 
 ```bash
-# Check for existing entities
-sqlite3 index.db "SELECT type, name FROM entities ORDER BY type, name"
+sqlite3 index.db "SELECT e.name, e.type FROM entities e JOIN entity_aliases a ON e.id = a.entity_id WHERE a.alias = 'search_term' COLLATE NOCASE"
 ```
 
-If you see variants of the same entity (e.g., `sam`, `Samuel Bunce`, `Sam`), create the file:
+If this returns a result, use that canonical form in your document frontmatter.
 
-```yaml
-# canonical_entities.yaml
-# Entity alias mappings - maintained by Archivist
-# Format: alias → canonical form
+#### Adding New Aliases
 
-aliases:
-  # Person variants
-  sam: "Samuel Bunce"
-  samuel: "Samuel Bunce"
+When you discover a variant of an existing entity:
 
-  # Tool variants
-  claude: "Claude Code"
-  sqlite: "SQLite"
+```bash
+# Find the entity_id for the canonical form
+sqlite3 index.db "SELECT id FROM entities WHERE name = 'Samuel Bunce'"
+# Returns: 1
+
+# Add the alias
+sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, entity_id) VALUES ('sam', 1)"
 ```
-
-#### During Normal Archiving
-
-When extracting entities:
-- Check if a variant of an existing canonical exists
-- If yes → use the canonical form
-- If new entity → add to the document, consider if it needs a canonical entry
 
 #### Canonical Review Mode
 
 When explicitly asked to "review canonicals" or "organize entities":
 
-1. Query all entities: `sqlite3 index.db "SELECT type, name, COUNT(*) as refs FROM entities e JOIN refs r ON e.name = r.entity GROUP BY e.name ORDER BY type, refs DESC"`
+1. Query all entities with their aliases:
+   ```bash
+   sqlite3 index.db "
+   SELECT e.name as canonical, e.type, GROUP_CONCAT(a.alias, ', ') as aliases, COUNT(DISTINCT r.doc_id) as refs
+   FROM entities e
+   LEFT JOIN entity_aliases a ON e.id = a.entity_id
+   LEFT JOIN refs r ON e.id = r.entity_id
+   GROUP BY e.id
+   ORDER BY e.type, refs DESC"
+   ```
 
-2. Look for:
-   - **Case variants**: `sam` vs `Sam` vs `SAM`
+2. Look for duplicate canonicals that should be merged:
+   - **Case variants**: `sam` vs `Sam` vs `SAM` (should be aliases, not separate entities)
    - **Spacing/punctuation**: `Claude Code` vs `claude-code`
    - **Abbreviations**: `CC` vs `Claude Code`
    - **Name forms**: `Sam` vs `Samuel Bunce`
 
-3. Group semantically equivalent entities → propose canonical form
-
-4. Update canonical_entities.yaml with new mappings
+3. To merge duplicates:
+   ```bash
+   # Keep "Samuel Bunce" (id=1), merge "Sam" (id=2) into it
+   # First, move aliases from id=2 to id=1
+   sqlite3 index.db "UPDATE entity_aliases SET entity_id = 1 WHERE entity_id = 2"
+   # Move refs
+   sqlite3 index.db "UPDATE OR IGNORE refs SET entity_id = 1 WHERE entity_id = 2"
+   # Delete the duplicate entity
+   sqlite3 index.db "DELETE FROM entities WHERE id = 2"
+   ```
 
 #### Principles
 

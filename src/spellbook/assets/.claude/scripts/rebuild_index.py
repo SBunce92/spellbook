@@ -10,24 +10,33 @@ import yaml
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS entities (
-    name TEXT PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
     type TEXT NOT NULL,
     created DATETIME NOT NULL,
     last_mentioned DATETIME NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS refs (
-    entity TEXT NOT NULL,
-    doc_id TEXT NOT NULL,
-    ts DATETIME NOT NULL,
-    PRIMARY KEY (entity, doc_id),
-    FOREIGN KEY (entity) REFERENCES entities(name)
+CREATE TABLE IF NOT EXISTS entity_aliases (
+    alias TEXT PRIMARY KEY COLLATE NOCASE,
+    entity_id INTEGER NOT NULL,
+    FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS refs (
+    entity_id INTEGER NOT NULL,
+    doc_id TEXT NOT NULL,
+    ts DATETIME NOT NULL,
+    PRIMARY KEY (entity_id, doc_id),
+    FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_aliases_entity ON entity_aliases(entity_id);
 CREATE INDEX IF NOT EXISTS idx_refs_doc ON refs(doc_id);
 CREATE INDEX IF NOT EXISTS idx_refs_ts ON refs(ts DESC);
 CREATE INDEX IF NOT EXISTS idx_entities_type ON entities(type);
 CREATE INDEX IF NOT EXISTS idx_entities_last ON entities(last_mentioned DESC);
+CREATE INDEX IF NOT EXISTS idx_entities_name ON entities(name COLLATE NOCASE);
 """
 
 
@@ -104,6 +113,7 @@ def rebuild(vault_path: Path) -> None:
         entities = parse_entities(frontmatter.get("entities", []))
 
         for name, etype in entities:
+            # Insert or update entity
             conn.execute(
                 """
                 INSERT INTO entities (name, type, created, last_mentioned)
@@ -114,12 +124,28 @@ def rebuild(vault_path: Path) -> None:
                 [name, etype, ts, ts],
             )
 
+            # Get entity id
+            cursor = conn.execute(
+                "SELECT id FROM entities WHERE name = ?", [name]
+            )
+            entity_id = cursor.fetchone()[0]
+
+            # Add canonical name as an alias (if not exists)
             conn.execute(
                 """
-                INSERT OR IGNORE INTO refs (entity, doc_id, ts)
+                INSERT OR IGNORE INTO entity_aliases (alias, entity_id)
+                VALUES (?, ?)
+                """,
+                [name, entity_id],
+            )
+
+            # Insert ref using entity_id
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO refs (entity_id, doc_id, ts)
                 VALUES (?, ?, ?)
                 """,
-                [name, doc_id, ts],
+                [entity_id, doc_id, ts],
             )
 
             entity_count += 1
