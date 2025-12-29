@@ -102,6 +102,50 @@ def init_vault(vault_path: Path, name: str, knowledge_url: str | None = None) ->
         for subdir in ["docs", "log", "buffer"]:
             subdir_path = knowledge_path / subdir
             subdir_path.mkdir(parents=True, exist_ok=True)
+
+        # Clone repos from manifest if it exists
+        repos_yaml = vault_path / "knowledge" / "repos.yaml"
+        if repos_yaml.exists():
+            with open(repos_yaml) as f:
+                manifest = yaml.safe_load(f)
+
+            repos_dir = vault_path / "repos"
+            repos_dir.mkdir(exist_ok=True)
+
+            # Support both old format (repos:) and new format (repositories:)
+            repositories = manifest.get("repositories", manifest.get("repos", []))
+            defaults = manifest.get("defaults", {})
+            default_depth = defaults.get("depth")
+            default_branch = defaults.get("branch", "main")
+
+            for repo in repositories:
+                url = repo["url"]
+                # Support both old format (path:) and new format (name:)
+                name = repo.get("name") or repo.get("path") or url.rstrip("/").split("/")[-1].replace(
+                    ".git", ""
+                )
+                branch = repo.get("branch", default_branch)
+                depth = repo.get("depth", default_depth)
+                target = repos_dir / name
+
+                if not target.exists():
+                    console.print(f"Cloning [cyan]{url}[/cyan] into repos/{name}...")
+                    clone_cmd = ["git", "clone"]
+                    if depth:
+                        clone_cmd.extend(["--depth", str(depth)])
+                    if branch:
+                        clone_cmd.extend(["--branch", branch])
+                    clone_cmd.extend([url, str(target)])
+                    result = subprocess.run(
+                        clone_cmd,
+                        capture_output=True,
+                        text=True,
+                    )
+                    if result.returncode != 0:
+                        console.print(
+                            f"[yellow]Warning:[/yellow] Failed to clone {url}",
+                        )
+                        console.print(f"  {result.stderr.strip()}")
     else:
         # Create empty knowledge structure
         for dir_path in ["knowledge/docs", "knowledge/log", "knowledge/buffer"]:
