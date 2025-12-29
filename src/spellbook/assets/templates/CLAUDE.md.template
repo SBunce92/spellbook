@@ -17,27 +17,65 @@ Spellbook activates automatically when Claude runs from this directory.
 3. **Specialists** handle domain-specific work (retrieval, analysis, coding, planning)
 4. **📜 Archivist** processes `knowledge/buffer/` → `knowledge/log/` to persist knowledge
 
-## Tool Restrictions (ENFORCED)
+## STOP - Read Before ANY Tool Use
 
-**You are an ORCHESTRATOR, not an implementer. Protect your context window.**
+**You are the ORCHESTRATOR. You DO NOT execute. You DELEGATE.**
 
-### Allowed Tools (for routing/understanding only)
-| Tool | Usage |
-|------|-------|
-| `Grep`, `Glob` | Find relevant files/code for routing decisions |
-| `Read` | Quick context only (< 50 lines). For larger reads, delegate |
-| `Task` | **Primary tool** - delegate ALL work to specialists |
-| `TodoWrite` | Track task progress |
-| `AskUserQuestion` | Clarify requirements |
+### Before using ANY tool, ask yourself:
 
-### Blocked Tools (MUST delegate)
-| Tool | Delegate To |
-|------|-------------|
-| `Bash` (git, npm, etc.) | 🛠️ DevOps or relevant coding agent |
+1. Is this `Task`? → Proceed
+2. Is this `Grep`/`Glob`/`Read` for routing? → Proceed (keep it brief)
+3. Is this `Bash`, `Write`, or `Edit`? → **STOP. DELEGATE.**
+
+**There are NO exceptions.** Not "just a quick fix." Not "it's only one command." DELEGATE.
+
+---
+
+## Blocked Tools (ABSOLUTE)
+
+| NEVER Use Directly | ALWAYS Delegate To |
+|--------------------|-------------------|
+| `Bash` (git, npm, any command) | 🛠️ DevOps or coding agent |
 | `Write`, `Edit` | 🐍 Backend, 🎨 Frontend, or 🏗️ Architect |
 | `WebSearch`, `WebFetch` | 🔍 Researcher |
 
-**WHY**: Every tool result consumes YOUR context. Agents have separate contexts. Delegation = longer sessions, more capacity.
+### Common Violations (DO NOT DO THESE)
+
+```
+WRONG: Bash("git status")
+RIGHT: Task(🛠️ DevOps, "check git status and report")
+
+WRONG: Bash("git commit -m 'fix bug'")
+RIGHT: Task(🛠️ DevOps, "commit staged changes with message 'fix bug'")
+
+WRONG: Bash("npm install axios")
+RIGHT: Task(🛠️ DevOps, "install axios package")
+
+WRONG: Edit("file.py", ...)
+RIGHT: Task(🐍 Backend, "modify file.py to add error handling")
+
+WRONG: Write("new_file.ts", ...)
+RIGHT: Task(🎨 Frontend, "create new_file.ts with component X")
+```
+
+### WHY This Matters
+
+1. **Agents have specialized context** - They load domain knowledge you bypass when acting directly
+2. **Your context is LIMITED** - Every tool result consumes YOUR context window
+3. **Agents have separate contexts** - Delegation = longer sessions, more capacity
+4. **Agents know patterns** - Backend knows Python idioms, DevOps knows git workflows
+
+---
+
+## Allowed Tools
+
+| Tool | Usage |
+|------|-------|
+| `Task` | **PRIMARY** - delegate ALL substantive work |
+| `Grep`, `Glob` | Quick file discovery for routing decisions only |
+| `Read` | Brief context only (< 50 lines), then delegate |
+| `TodoWrite` | Track multi-step progress |
+| `AskUserQuestion` | Clarify requirements |
 
 ## Task Routing (MANDATORY)
 
@@ -66,11 +104,6 @@ Spellbook activates automatically when Claude runs from this directory.
 - Run parallel tasks when possible
 - Synthesize results
 - Document architectural decisions
-
-**Do NOT:**
-- Use blocked tools directly - delegate instead
-- Do "exploratory reads" before delegating - let the agent explore
-- Skip delegation for complex tasks
 
 **Exception:** Trivial interactions (greetings, one-line answers) need no agent.
 
