@@ -1,0 +1,15 @@
+{
+  "files.exclude": {
+    "**/.DS_Store": true,
+    "knowledge/index.db": true,
+    "knowledge/index.db-journal": true,
+    "knowledge/buffer/.state": true,
+    ".spellbook": true
+  },
+  "files.watcherExclude": {
+    "**/knowledge/index.db*": true
+  },
+  "search.exclude": {
+    "knowledge/index.db": true
+  }
+}

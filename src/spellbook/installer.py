@@ -165,6 +165,10 @@ def init_vault(vault_path: Path, name: str, knowledge_url: str | None = None) ->
     _copy_claude_dir(assets_path, vault_path)
     console.print("  [green]\u2713[/green] .claude/")
 
+    # Copy .vscode/ directory from assets
+    _copy_vscode_dir(assets_path, vault_path)
+    console.print("  [green]\u2713[/green] .vscode/")
+
     # Create knowledge/.gitignore
     _create_knowledge_gitignore(vault_path)
     console.print("  [green]\u2713[/green] knowledge/.gitignore")
@@ -281,6 +285,10 @@ def update_vault(vault_path: Path, fetch: bool = True) -> None:
     _copy_claude_dir(assets_path, vault_path, clean_first=True)
     console.print("  [green]\u2713[/green] .claude/ (replaced)")
 
+    # Delete .vscode/ entirely and copy fresh
+    _copy_vscode_dir(assets_path, vault_path, clean_first=True)
+    console.print("  [green]\u2713[/green] .vscode/ (replaced)")
+
     # Ensure knowledge/.gitignore exists
     _create_knowledge_gitignore(vault_path)
 
@@ -386,6 +394,28 @@ def _copy_claude_dir(assets_path: Path, vault_path: Path, clean_first: bool = Fa
         for hook_file in hooks_dir.iterdir():
             if hook_file.is_file():
                 hook_file.chmod(hook_file.stat().st_mode | 0o111)
+
+
+def _copy_vscode_dir(assets_path: Path, vault_path: Path, clean_first: bool = False) -> None:
+    """Copy .vscode/ directory from assets to vault.
+
+    Args:
+        assets_path: Path to bundled assets
+        vault_path: Path to vault root
+        clean_first: If True, delete existing .vscode/ before copying
+    """
+    src_vscode = assets_path / ".vscode"
+    dest_vscode = vault_path / ".vscode"
+
+    if not src_vscode.exists():
+        return
+
+    # Delete existing .vscode/ if requested
+    if clean_first and dest_vscode.exists():
+        shutil.rmtree(dest_vscode)
+
+    # Copy entire .vscode/ directory
+    shutil.copytree(src_vscode, dest_vscode, dirs_exist_ok=True)
 
 
 def _create_claude_md(vault_path: Path, name: str) -> None:

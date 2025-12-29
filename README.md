@@ -53,10 +53,10 @@ claude auth
 ## Installation
 
 ```bash
-uv pip install spellbook-vault
+uv tool install git+https://github.com/SBunce92/spellbook.git
 ```
 
-Or from source:
+For development (from source):
 
 ```bash
 git clone https://github.com/SBunce92/spellbook
@@ -97,12 +97,18 @@ The CLI is for installation and administration only. All agent work happens with
 
 ```
 vault/
-├── .spellbook           # Config
+├── .spellbook           # Vault marker
 ├── .claude/
-│   └── agents/          # Auto-delegated subagents
-├── log/                 # Archived documents
-├── buffer/              # Pending transcripts
-├── index.db             # SQLite index
+│   ├── agents/          # Subagent definitions
+│   ├── hooks/           # Hook scripts
+│   └── settings.json    # Hook registration
+├── knowledge/           # Git repo for knowledge artifacts
+│   ├── buffer/          # Pending transcripts
+│   ├── log/             # Archived documents
+│   ├── docs/            # Design documents
+│   ├── index.db         # SQLite index (gitignored)
+│   └── repos.yaml       # Repository manifest (future)
+├── repos/               # Cloned repositories (future)
 └── CLAUDE.md            # Project instructions
 ```
 
@@ -110,11 +116,21 @@ vault/
 
 Agents in `.claude/agents/` are auto-delegated by Claude Code based on task description:
 
-- **archivist**: Process transcripts into structured docs
-- **librarian**: Deep retrieval with synthesis
-- **researcher**: Fast factual lookup
-- **specter**: Dead code and quality checks
-- **trader**, **ai-engineer**, **data-engineer**, **quant-dev**: Domain specialists
+**Core:**
+- **📜 Archivist** - Process knowledge/buffer → knowledge/log, extract entities
+- **📚 Librarian** - Deep retrieval from vault, synthesize answers with citations
+- **🔍 Researcher** - Web research, scientific papers, multi-source synthesis
+
+**Coding:**
+- **🐍 Backend** - Python, APIs, server-side, performance
+- **🎨 Frontend** - TypeScript, React, UX/UI, accessibility
+- **🏗️ Architect** - System design, planning, fullstack, tech decisions
+
+**Domain:**
+- **📈 Trader** - Derivatives, options, Greeks, quant
+- **🤖 AI Engineer** - ML systems, LLM integration, RAG, spellbook/MCP
+- **🗄️ Data Engineer** - Pipelines, ClickHouse, ETL
+- **🛠️ DevOps** - CI/CD, Docker, infra, deployment
 
 ## License
 

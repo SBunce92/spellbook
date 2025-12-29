@@ -28,6 +28,7 @@ ENV/
 # IDE
 .idea/
 .vscode/
+!src/spellbook/assets/.vscode/
 *.swp
 *.swo
 
