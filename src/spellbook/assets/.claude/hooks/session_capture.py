@@ -313,8 +313,9 @@ def extract_usage_data(transcript_path: str, session_id: str) -> dict:
 
 
 def store_usage(vault_path: Path, session_id: str, usage: dict) -> None:
-    """Store usage data in index.db."""
-    db_path = vault_path / "index.db"
+    """Store usage data in knowledge/index.db."""
+    db_path = vault_path / "knowledge" / "index.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path)
 
     try:
@@ -413,8 +414,8 @@ def main():
         return
 
     # Ensure buffer directory exists
-    buffer_dir = vault / "buffer"
-    buffer_dir.mkdir(exist_ok=True)
+    buffer_dir = vault / "knowledge" / "buffer"
+    buffer_dir.mkdir(parents=True, exist_ok=True)
 
     # Load state
     state = load_state(buffer_dir)

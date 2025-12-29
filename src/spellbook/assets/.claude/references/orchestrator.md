@@ -70,6 +70,6 @@ Every tool result consumes YOUR context window. Agents operate in separate conte
 
 At the end of substantive tasks:
 
-1. Check buffer: Count files in `buffer/`
+1. Check buffer: Count files in `knowledge/buffer/`
 2. If count > 0: `Task(subagent_type="📜 Archivist", prompt="Process buffer")`
 3. This is **NON-NEGOTIABLE** - knowledge must be persisted

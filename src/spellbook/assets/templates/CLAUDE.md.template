@@ -5,17 +5,17 @@ Spellbook vault v{{version}}
 ## Quick Start
 
 ```bash
-ccv   # Run Claude from vault directory
+sb cc   # Run Claude from vault directory
 ```
 
 Spellbook activates automatically when Claude runs from this directory.
 
 ## How It Works
 
-1. **Stop hook** captures exchanges to `buffer/` automatically
+1. **Stop hook** captures exchanges to `knowledge/buffer/` automatically
 2. **Main Claude** orchestrates tasks, delegating to specialists
 3. **Specialists** handle domain-specific work (retrieval, analysis, coding, planning)
-4. **📜 Archivist** processes `buffer/` → `log/` to persist knowledge
+4. **📜 Archivist** processes `knowledge/buffer/` → `knowledge/log/` to persist knowledge
 
 ## Tool Restrictions (ENFORCED)
 
@@ -78,7 +78,7 @@ Spellbook activates automatically when Claude runs from this directory.
 
 The stop hook captures exchanges automatically. You MUST invoke 📜 Archivist at the end of every substantive task:
 
-1. Check buffer: `ls buffer/*.txt 2>/dev/null | wc -l`
+1. Check buffer: `ls knowledge/buffer/*.txt 2>/dev/null | wc -l`
 2. If count > 0: `Task(subagent_type="📜 Archivist", prompt="Process buffer")`
 3. This is NON-NEGOTIABLE
 
@@ -90,9 +90,14 @@ The stop hook captures exchanges automatically. You MUST invoke 📜 Archivist a
   agents/        # Subagent definitions
   hooks/         # Hook scripts
   scripts/       # Utility scripts
-log/             # Archived documents (source of truth)
-buffer/          # Pending exchange captures
-index.db         # SQLite entity index (rebuildable)
+knowledge/       # Git repo for knowledge artifacts
+  .gitignore     # Contains: index.db
+  buffer/        # Pending exchange captures
+  log/           # Archived documents (source of truth)
+  docs/          # Design documents (Obsidian vault)
+  index.db       # SQLite entity index (rebuildable)
+  repos.yaml     # Manifest (for future repos feature)
+repos/           # Folder for cloned repos (future)
 ```
 
 ## CLI
@@ -101,11 +106,11 @@ index.db         # SQLite entity index (rebuildable)
 |---------|-------------|
 | `sb status` | Check vault status (buffer count, entities, docs) |
 | `sb update` | Update managed files to latest version |
-| `sb rebuild` | Rebuild index.db from log/ |
+| `sb rebuild` | Rebuild index.db from knowledge/log/ |
 
 ## Entity Types
 
-Documents in `log/` tag entities in YAML frontmatter:
+Documents in `knowledge/log/` tag entities in YAML frontmatter:
 
 ```yaml
 ---
@@ -125,7 +130,7 @@ entities:
 - **Main Claude** - You are the orchestrator, route work to specialists
 
 **Core:**
-- **📜 Archivist** - Process buffer → log, extract entities
+- **📜 Archivist** - Process knowledge/buffer → knowledge/log, extract entities
 - **📚 Librarian** - Deep retrieval from vault, synthesize answers with citations
 - **🔍 Researcher** - Web research, scientific papers, multi-source synthesis
 

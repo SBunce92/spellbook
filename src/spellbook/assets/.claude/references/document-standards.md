@@ -12,7 +12,7 @@ Reference for archive document quality and structure.
 | `reference` | Factual information, specs |
 | `research` | Investigation with findings and synthesis |
 | `analysis` | Deep examination of a problem/system |
-| `design` | Evolving design document (lives in docs/, not log/) |
+| `design` | Evolving design document (lives in knowledge/docs/, not knowledge/log/) |
 
 ## Complexity Assessment
 

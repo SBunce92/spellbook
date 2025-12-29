@@ -21,9 +21,10 @@ SPELLBOOK_MARKER = ".spellbook"
 
 # Directories to create in new vaults
 VAULT_DIRS = [
-    "docs",
-    "log",
-    "buffer",
+    "knowledge/docs",
+    "knowledge/log",
+    "knowledge/buffer",
+    "repos",
 ]
 
 
@@ -81,6 +82,10 @@ def init_vault(vault_path: Path, name: str) -> None:
     assets_path = get_assets_path()
     _copy_claude_dir(assets_path, vault_path)
     console.print("  [green]\u2713[/green] .claude/")
+
+    # Create knowledge/.gitignore
+    _create_knowledge_gitignore(vault_path)
+    console.print("  [green]\u2713[/green] knowledge/.gitignore")
 
     # Create CLAUDE.md from template
     _create_claude_md(vault_path, name)
@@ -156,7 +161,7 @@ def update_vault(vault_path: Path, fetch: bool = True) -> None:
     """Update managed files in existing vault.
 
     Fully deletes and rewrites: .claude/, .spellbook, CLAUDE.md
-    Never touches: buffer/, log/, index.db
+    Never touches: knowledge/buffer/, knowledge/log/, knowledge/index.db
 
     Args:
         vault_path: Path to the vault root
@@ -189,10 +194,16 @@ def update_vault(vault_path: Path, fetch: bool = True) -> None:
     # Step 2: Delete and rewrite managed files
     console.print("Syncing vault files...")
 
+    # Migrate old vault structure if needed
+    _migrate_to_knowledge_structure(vault_path)
+
     # Delete .claude/ entirely and copy fresh
     assets_path = get_assets_path()
     _copy_claude_dir(assets_path, vault_path, clean_first=True)
     console.print("  [green]\u2713[/green] .claude/ (replaced)")
+
+    # Ensure knowledge/.gitignore exists
+    _create_knowledge_gitignore(vault_path)
 
     # Overwrite CLAUDE.md
     _update_claude_md(vault_path, config.vault_dir)
@@ -206,12 +217,13 @@ def update_vault(vault_path: Path, fetch: bool = True) -> None:
 
     # Report preserved files
     console.print("\nPreserved:")
-    log_count = len(list((vault_path / "log").rglob("*.md")))
-    buffer_count = len(list((vault_path / "buffer").glob("*.txt")))
-    console.print(f"  - log/ ({log_count} docs)")
-    console.print(f"  - buffer/ ({buffer_count} pending)")
-    if (vault_path / "index.db").exists():
-        console.print("  - index.db")
+    knowledge_path = vault_path / "knowledge"
+    log_count = len(list((knowledge_path / "log").rglob("*.md"))) if (knowledge_path / "log").exists() else 0
+    buffer_count = len(list((knowledge_path / "buffer").glob("*.txt"))) if (knowledge_path / "buffer").exists() else 0
+    console.print(f"  - knowledge/log/ ({log_count} docs)")
+    console.print(f"  - knowledge/buffer/ ({buffer_count} pending)")
+    if (knowledge_path / "index.db").exists():
+        console.print("  - knowledge/index.db")
 
     console.print("\n[green]Done![/green]")
 
@@ -231,15 +243,16 @@ def get_vault_status(vault_path: Path) -> None:
     console.print(f"Path:           {vault_path}")
 
     # Count buffer files
-    buffer_path = vault_path / "buffer"
+    knowledge_path = vault_path / "knowledge"
+    buffer_path = knowledge_path / "buffer"
     buffer_count = len(list(buffer_path.glob("*.txt"))) if buffer_path.exists() else 0
     console.print(f"Buffer:         {buffer_count} pending")
 
     # Count docs and entities
-    log_path = vault_path / "log"
+    log_path = knowledge_path / "log"
     doc_count = len(list(log_path.rglob("*.md"))) if log_path.exists() else 0
 
-    db_path = vault_path / "index.db"
+    db_path = knowledge_path / "index.db"
     entity_count = 0
     if db_path.exists():
         import sqlite3
@@ -322,3 +335,59 @@ Spellbook vault v{__version__}
 """
 
     claude_md_path.write_text(content)
+
+
+def _create_knowledge_gitignore(vault_path: Path) -> None:
+    """Create knowledge/.gitignore with index.db entry."""
+    knowledge_path = vault_path / "knowledge"
+    knowledge_path.mkdir(parents=True, exist_ok=True)
+    gitignore_path = knowledge_path / ".gitignore"
+    gitignore_path.write_text("index.db\n")
+
+
+def _migrate_to_knowledge_structure(vault_path: Path) -> None:
+    """Migrate old vault structure to new knowledge/ structure.
+
+    Old structure:
+        buffer/, log/, docs/, index.db
+
+    New structure:
+        knowledge/buffer/, knowledge/log/, knowledge/docs/, knowledge/index.db
+    """
+    knowledge_path = vault_path / "knowledge"
+
+    # Check if migration is needed (old structure exists but new doesn't)
+    old_dirs = ["buffer", "log", "docs"]
+    old_exists = any((vault_path / d).exists() for d in old_dirs)
+    new_exists = (knowledge_path / "log").exists() or (knowledge_path / "buffer").exists()
+
+    if not old_exists or new_exists:
+        return  # No migration needed
+
+    console.print("\n[yellow]Migrating to new knowledge/ structure...[/yellow]")
+
+    # Create knowledge directory
+    knowledge_path.mkdir(parents=True, exist_ok=True)
+
+    # Move directories
+    for dir_name in old_dirs:
+        old_path = vault_path / dir_name
+        new_path = knowledge_path / dir_name
+        if old_path.exists() and not new_path.exists():
+            shutil.move(str(old_path), str(new_path))
+            console.print(f"  [green]\u2713[/green] Moved {dir_name}/ -> knowledge/{dir_name}/")
+
+    # Move index.db
+    old_db = vault_path / "index.db"
+    new_db = knowledge_path / "index.db"
+    if old_db.exists() and not new_db.exists():
+        shutil.move(str(old_db), str(new_db))
+        console.print("  [green]\u2713[/green] Moved index.db -> knowledge/index.db")
+
+    # Create repos/ directory
+    repos_path = vault_path / "repos"
+    if not repos_path.exists():
+        repos_path.mkdir(parents=True, exist_ok=True)
+        console.print("  [green]\u2713[/green] Created repos/")
+
+    console.print("[green]Migration complete![/green]\n")

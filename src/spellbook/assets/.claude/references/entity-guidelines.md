@@ -58,7 +58,7 @@ If the answer is no, DO NOT extract it. Entities exist for retrieval. Noise enti
 
 ```bash
 # Check if a term resolves to an existing canonical
-sqlite3 index.db "SELECT canonical, entity_type FROM entity_aliases WHERE alias = 'sam' COLLATE NOCASE"
+sqlite3 knowledge/index.db "SELECT canonical, entity_type FROM entity_aliases WHERE alias = 'sam' COLLATE NOCASE"
 
 # If result: Use the canonical value in frontmatter
 # If no result: Check if this is a variation of existing entity before creating new
@@ -68,14 +68,14 @@ sqlite3 index.db "SELECT canonical, entity_type FROM entity_aliases WHERE alias 
 
 ```bash
 # 1. Create the canonical entity
-sqlite3 index.db "INSERT INTO entities (name, type, created, last_mentioned) VALUES ('Samuel Bunce', 'person', datetime('now'), datetime('now'))"
+sqlite3 knowledge/index.db "INSERT INTO entities (name, type, created, last_mentioned) VALUES ('Samuel Bunce', 'person', datetime('now'), datetime('now'))"
 
 # 2. Register the canonical as an alias to itself
-sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, canonical, entity_type) VALUES ('Samuel Bunce', 'Samuel Bunce', 'person')"
+sqlite3 knowledge/index.db "INSERT OR IGNORE INTO entity_aliases (alias, canonical, entity_type) VALUES ('Samuel Bunce', 'Samuel Bunce', 'person')"
 
 # 3. Register common variations as aliases
-sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, canonical, entity_type) VALUES ('Sam', 'Samuel Bunce', 'person')"
-sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, canonical, entity_type) VALUES ('sam', 'Samuel Bunce', 'person')"
+sqlite3 knowledge/index.db "INSERT OR IGNORE INTO entity_aliases (alias, canonical, entity_type) VALUES ('Sam', 'Samuel Bunce', 'person')"
+sqlite3 knowledge/index.db "INSERT OR IGNORE INTO entity_aliases (alias, canonical, entity_type) VALUES ('sam', 'Samuel Bunce', 'person')"
 ```
 
 **Always self-alias:** Register the canonical name as an alias to itself for consistent lookups.
@@ -84,10 +84,10 @@ sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, canonical, entity
 
 ```bash
 # Verify canonical exists
-sqlite3 index.db "SELECT name FROM entities WHERE name = 'Claude Code'"
+sqlite3 knowledge/index.db "SELECT name FROM entities WHERE name = 'Claude Code'"
 
 # Add the new alias
-sqlite3 index.db "INSERT OR IGNORE INTO entity_aliases (alias, canonical, entity_type) VALUES ('CC', 'Claude Code', 'tool')"
+sqlite3 knowledge/index.db "INSERT OR IGNORE INTO entity_aliases (alias, canonical, entity_type) VALUES ('CC', 'Claude Code', 'tool')"
 ```
 
 ## Examples

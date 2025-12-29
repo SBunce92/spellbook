@@ -7,7 +7,7 @@ from pathlib import Path
 
 import yaml
 
-# Directories to scan for documents
+# Directories to scan for documents (relative to knowledge/)
 DOC_DIRS = ["log", "docs"]
 
 SCHEMA_SQL = """
@@ -75,13 +75,14 @@ def parse_entities(raw_entities) -> list[tuple[str, str]]:
 
 
 def rebuild(vault_path: Path) -> None:
-    """Rebuild index.db from log and docs documents."""
-    db_path = vault_path / "index.db"
+    """Rebuild index.db from knowledge/log and knowledge/docs documents."""
+    knowledge_path = vault_path / "knowledge"
+    db_path = knowledge_path / "index.db"
 
     # Check at least one doc directory exists
-    existing_dirs = [d for d in DOC_DIRS if (vault_path / d).exists()]
+    existing_dirs = [d for d in DOC_DIRS if (knowledge_path / d).exists()]
     if not existing_dirs:
-        print(f"Error: No document directories (log/, docs/) found at {vault_path}")
+        print(f"Error: No document directories (knowledge/log/, knowledge/docs/) found at {vault_path}")
         sys.exit(1)
 
     # Remove existing database
@@ -96,7 +97,7 @@ def rebuild(vault_path: Path) -> None:
 
     # Scan all document directories
     for dir_name in DOC_DIRS:
-        dir_path = vault_path / dir_name
+        dir_path = knowledge_path / dir_name
         if not dir_path.exists():
             continue
 
@@ -105,12 +106,12 @@ def rebuild(vault_path: Path) -> None:
             frontmatter = parse_frontmatter(content)
 
             if not frontmatter:
-                print(f"  ! {doc_file.relative_to(vault_path)} (no frontmatter)")
+                print(f"  ! {doc_file.relative_to(knowledge_path)} (no frontmatter)")
                 errors += 1
                 continue
 
             # Use relative path as doc_id for better identification
-            doc_id = str(doc_file.relative_to(vault_path))
+            doc_id = str(doc_file.relative_to(knowledge_path))
             # Accept both 'ts' and 'date' fields
             ts = frontmatter.get("ts") or frontmatter.get("date")
 
@@ -159,7 +160,7 @@ def rebuild(vault_path: Path) -> None:
                 entity_count += 1
 
             doc_count += 1
-            print(f"  + {doc_file.relative_to(vault_path)}")
+            print(f"  + {doc_file.relative_to(knowledge_path)}")
 
     conn.commit()
 

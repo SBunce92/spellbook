@@ -87,7 +87,7 @@ CREATE INDEX IF NOT EXISTS idx_subagent_started ON subagent_calls(started_at DES
 
 def connect(vault_path: Path) -> sqlite3.Connection:
     """Connect to vault's index database."""
-    db_path = vault_path / "index.db"
+    db_path = vault_path / "knowledge" / "index.db"
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
@@ -366,7 +366,7 @@ def list_entities_with_aliases(vault_path: Path, entity_type: str | None = None)
 
     Only shows canonical entities (those that are not aliases of another entity).
     """
-    db_path = vault_path / "index.db"
+    db_path = vault_path / "knowledge" / "index.db"
     if not db_path.exists():
         console.print("[yellow]No index.db found. Run 'sb rebuild' first.[/yellow]")
         return
@@ -479,9 +479,10 @@ def list_entities_with_aliases(vault_path: Path, entity_type: str | None = None)
 
 
 def rebuild_index(vault_path: Path) -> None:
-    """Rebuild index.db by scanning all documents in log/."""
-    db_path = vault_path / "index.db"
-    log_path = vault_path / "log"
+    """Rebuild index.db by scanning all documents in knowledge/log/."""
+    knowledge_path = vault_path / "knowledge"
+    db_path = knowledge_path / "index.db"
+    log_path = knowledge_path / "log"
 
     console.print("\n[bold]Rebuilding index...[/bold]\n")
 
@@ -541,7 +542,7 @@ def init_context_schema(conn: sqlite3.Connection) -> None:
 
 def ensure_context_schema(vault_path: Path) -> sqlite3.Connection:
     """Ensure context schema exists and return connection."""
-    db_path = vault_path / "index.db"
+    db_path = vault_path / "knowledge" / "index.db"
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     init_context_schema(conn)
