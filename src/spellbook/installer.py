@@ -194,9 +194,6 @@ def update_vault(vault_path: Path, fetch: bool = True) -> None:
     # Step 2: Delete and rewrite managed files
     console.print("Syncing vault files...")
 
-    # Migrate old vault structure if needed
-    _migrate_to_knowledge_structure(vault_path)
-
     # Delete .claude/ entirely and copy fresh
     assets_path = get_assets_path()
     _copy_claude_dir(assets_path, vault_path, clean_first=True)
@@ -343,51 +340,3 @@ def _create_knowledge_gitignore(vault_path: Path) -> None:
     knowledge_path.mkdir(parents=True, exist_ok=True)
     gitignore_path = knowledge_path / ".gitignore"
     gitignore_path.write_text("index.db\n")
-
-
-def _migrate_to_knowledge_structure(vault_path: Path) -> None:
-    """Migrate old vault structure to new knowledge/ structure.
-
-    Old structure:
-        buffer/, log/, docs/, index.db
-
-    New structure:
-        knowledge/buffer/, knowledge/log/, knowledge/docs/, knowledge/index.db
-    """
-    knowledge_path = vault_path / "knowledge"
-
-    # Check if migration is needed (old structure exists but new doesn't)
-    old_dirs = ["buffer", "log", "docs"]
-    old_exists = any((vault_path / d).exists() for d in old_dirs)
-    new_exists = (knowledge_path / "log").exists() or (knowledge_path / "buffer").exists()
-
-    if not old_exists or new_exists:
-        return  # No migration needed
-
-    console.print("\n[yellow]Migrating to new knowledge/ structure...[/yellow]")
-
-    # Create knowledge directory
-    knowledge_path.mkdir(parents=True, exist_ok=True)
-
-    # Move directories
-    for dir_name in old_dirs:
-        old_path = vault_path / dir_name
-        new_path = knowledge_path / dir_name
-        if old_path.exists() and not new_path.exists():
-            shutil.move(str(old_path), str(new_path))
-            console.print(f"  [green]\u2713[/green] Moved {dir_name}/ -> knowledge/{dir_name}/")
-
-    # Move index.db
-    old_db = vault_path / "index.db"
-    new_db = knowledge_path / "index.db"
-    if old_db.exists() and not new_db.exists():
-        shutil.move(str(old_db), str(new_db))
-        console.print("  [green]\u2713[/green] Moved index.db -> knowledge/index.db")
-
-    # Create repos/ directory
-    repos_path = vault_path / "repos"
-    if not repos_path.exists():
-        repos_path.mkdir(parents=True, exist_ok=True)
-        console.print("  [green]\u2713[/green] Created repos/")
-
-    console.print("[green]Migration complete![/green]\n")
