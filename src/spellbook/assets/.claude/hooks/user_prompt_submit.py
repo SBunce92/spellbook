@@ -51,7 +51,7 @@ def get_vault_state(vault: Path) -> dict:
 
 def load_orchestrator_context(vault: Path) -> str:
     """Load orchestrator context from markdown file."""
-    context_file = vault / ".claude" / "context" / "orchestrator.md"
+    context_file = vault / ".claude" / "references" / "orchestrator.md"
 
     if context_file.exists():
         try:

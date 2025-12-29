@@ -121,9 +121,8 @@ def init_vault(vault_path: Path, name: str, knowledge_url: str | None = None) ->
             for repo in repositories:
                 url = repo["url"]
                 # Support both old format (path:) and new format (name:)
-                name = repo.get("name") or repo.get("path") or url.rstrip("/").split("/")[-1].replace(
-                    ".git", ""
-                )
+                default_name = url.rstrip("/").split("/")[-1].replace(".git", "")
+                name = repo.get("name") or repo.get("path") or default_name
                 branch = repo.get("branch", default_branch)
                 depth = repo.get("depth", default_depth)
                 target = repos_dir / name
@@ -325,46 +324,198 @@ def update_vault(vault_path: Path, fetch: bool = True) -> None:
 
 def get_vault_status(vault_path: Path) -> None:
     """Display vault status and statistics."""
+    import json
+    import sqlite3
+    from datetime import datetime, timedelta
+
     config = read_config(vault_path)
     if not config:
         console.print("[red]Error:[/red] Invalid vault")
         raise SystemExit(1)
 
-    console.print("\n[bold]Spellbook Vault Status[/bold]")
-    console.print("\u2500" * 22)
+    console.print(f"\n[bold]Spellbook Vault[/bold] v{__version__}\n")
 
-    console.print(f"Version:        {config.version}")
-    console.print(f"Directory:      {config.vault_dir}")
-    console.print(f"Path:           {vault_path}")
+    knowledge_path = vault_path / "knowledge"
+    db_path = knowledge_path / "index.db"
+
+    # =========================================================================
+    # Knowledge Section
+    # =========================================================================
+    console.print("[bold]Knowledge:[/bold]")
 
     # Count buffer files
-    knowledge_path = vault_path / "knowledge"
     buffer_path = knowledge_path / "buffer"
     buffer_count = len(list(buffer_path.glob("*.txt"))) if buffer_path.exists() else 0
-    console.print(f"Buffer:         {buffer_count} pending")
+    buffer_status = f"{buffer_count} files pending"
+    if buffer_count > 0:
+        buffer_status = f"[yellow]{buffer_count} files pending[/yellow]"
+    console.print(f"  Buffer:     {buffer_status}")
 
-    # Count docs and entities
+    # Count log documents
     log_path = knowledge_path / "log"
     doc_count = len(list(log_path.rglob("*.md"))) if log_path.exists() else 0
+    console.print(f"  Log:        {doc_count} documents")
 
-    db_path = knowledge_path / "index.db"
-    entity_count = 0
+    # Query entity counts by type
+    entity_total = 0
+    entity_by_type: dict[str, int] = {}
     if db_path.exists():
-        import sqlite3
-
         conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
         try:
-            cursor = conn.execute("SELECT COUNT(*) FROM entities")
-            entity_count = cursor.fetchone()[0]
+            cursor = conn.execute(
+                "SELECT type, COUNT(*) as cnt FROM entities GROUP BY type ORDER BY cnt DESC"
+            )
+            for row in cursor.fetchall():
+                entity_by_type[row["type"]] = row["cnt"]
+                entity_total += row["cnt"]
         except sqlite3.OperationalError:
             pass
-        finally:
-            conn.close()
+        conn.close()
 
-    console.print(f"Index:          {entity_count} entities, {doc_count} docs")
-    console.print(f"Created:        {config.created.strftime('%Y-%m-%d')}")
-    console.print(f"Last updated:   {config.last_updated.strftime('%Y-%m-%d %H:%M')}")
+    if entity_total > 0:
+        type_summary = ", ".join(f"{t}: {c}" for t, c in list(entity_by_type.items())[:4])
+        if len(entity_by_type) > 4:
+            type_summary += ", ..."
+        console.print(f"  Entities:   {entity_total} ({type_summary})")
+    else:
+        console.print("  Entities:   0")
+
     console.print()
+
+    # =========================================================================
+    # Sessions Section
+    # =========================================================================
+    console.print("[bold]Sessions:[/bold]")
+
+    session_count = 0
+    total_input_7d = 0
+    total_output_7d = 0
+    has_sessions = False
+
+    if db_path.exists():
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            # Check if sessions table exists
+            cursor = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'"
+            )
+            if cursor.fetchone():
+                has_sessions = True
+
+                # Total session count
+                cursor = conn.execute("SELECT COUNT(*) FROM sessions")
+                session_count = cursor.fetchone()[0]
+
+                # Token usage in last 7 days
+                week_ago = (datetime.now() - timedelta(days=7)).isoformat()
+                cursor = conn.execute(
+                    """
+                    SELECT
+                        COALESCE(SUM(total_input_tokens), 0) as input_sum,
+                        COALESCE(SUM(total_output_tokens), 0) as output_sum
+                    FROM sessions
+                    WHERE started_at >= ?
+                    """,
+                    [week_ago],
+                )
+                row = cursor.fetchone()
+                total_input_7d = row["input_sum"] or 0
+                total_output_7d = row["output_sum"] or 0
+        except sqlite3.OperationalError:
+            pass
+        conn.close()
+
+    if has_sessions and session_count > 0:
+        console.print(f"  Total:      {session_count} recorded")
+        input_str = _format_token_count(total_input_7d)
+        output_str = _format_token_count(total_output_7d)
+        console.print(f"  Tokens:     {input_str} input, {output_str} output (last 7 days)")
+    else:
+        console.print("  [dim]No session data yet[/dim]")
+
+    console.print()
+
+    # =========================================================================
+    # Repos Section
+    # =========================================================================
+    console.print("[bold]Repos:[/bold]")
+
+    repos_yaml = knowledge_path / "repos.yaml"
+    if repos_yaml.exists():
+        try:
+            repos_data = yaml.safe_load(repos_yaml.read_text())
+            repos_list = repos_data.get("repositories", repos_data.get("repos", []))
+            repo_count = len(repos_list) if repos_list else 0
+            console.print(f"  Configured: {repo_count}")
+        except Exception:
+            console.print("  [yellow]Error reading repos.yaml[/yellow]")
+    else:
+        console.print("  [dim]Configured: 0 (add repos to knowledge/repos.yaml)[/dim]")
+
+    console.print()
+
+    # =========================================================================
+    # Health Checks
+    # =========================================================================
+    console.print("[bold]Health:[/bold]")
+
+    # Check stop hook in .claude/settings.json
+    settings_path = vault_path / ".claude" / "settings.json"
+    stop_hook_ok = False
+    if settings_path.exists():
+        try:
+            settings = json.loads(settings_path.read_text())
+            hooks = settings.get("hooks", {})
+            stop_hooks = hooks.get("Stop", [])
+            # Check nested hook structure: Stop: [{hooks: [{type, command}]}]
+            for entry in stop_hooks:
+                if isinstance(entry, dict):
+                    nested_hooks = entry.get("hooks", [])
+                    for h in nested_hooks:
+                        if isinstance(h, dict) and h.get("command"):
+                            stop_hook_ok = True
+                            break
+                if stop_hook_ok:
+                    break
+        except Exception:
+            pass
+
+    if stop_hook_ok:
+        console.print("  [green][OK][/green] Stop hook active")
+    else:
+        console.print("  [yellow][!][/yellow]  Stop hook not found in .claude/settings.json")
+
+    # Check orchestrator injection file
+    orchestrator_path = vault_path / ".claude" / "references" / "orchestrator.md"
+    if orchestrator_path.exists():
+        console.print("  [green][OK][/green] Orchestrator injection working")
+    else:
+        console.print("  [yellow][!][/yellow]  Orchestrator file missing (.claude/references/)")
+
+    # Check index.db exists
+    if db_path.exists():
+        console.print("  [green][OK][/green] index.db synced")
+    else:
+        console.print("  [yellow][!][/yellow]  index.db missing (run 'sb rebuild')")
+
+    # Warn if buffer has >2 files
+    if buffer_count > 2:
+        console.print(
+            f"  [yellow][!][/yellow]  {buffer_count} buffer files > threshold (invoke Archivist)"
+        )
+
+    console.print()
+
+
+def _format_token_count(n: int) -> str:
+    """Format token count with K/M suffix for readability."""
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f}M"
+    if n >= 1000:
+        return f"{n / 1000:.1f}K"
+    return str(n)
 
 
 def _copy_claude_dir(assets_path: Path, vault_path: Path, clean_first: bool = False) -> None:
