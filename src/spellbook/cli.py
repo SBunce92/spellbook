@@ -31,9 +31,17 @@ def init(name: str, path: str | None):
     """
     from .installer import init_vault
 
+    # Prompt for optional knowledge repository URL
+    knowledge_url = click.prompt(
+        "Knowledge repository URL (leave blank for new)",
+        default="",
+        show_default=False,
+    )
+    knowledge_url = knowledge_url.strip() or None
+
     parent = Path(path).resolve() if path else Path.cwd()
     vault_path = parent / name
-    init_vault(vault_path, name)
+    init_vault(vault_path, name, knowledge_url=knowledge_url)
 
 
 @cli.command()

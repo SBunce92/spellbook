@@ -60,8 +60,14 @@ def write_config(vault_path: Path, config: SpellbookConfig) -> None:
         yaml.dump(config.model_dump(mode="json"), f, default_flow_style=False)
 
 
-def init_vault(vault_path: Path, name: str) -> None:
-    """Initialize a new Spellbook vault."""
+def init_vault(vault_path: Path, name: str, knowledge_url: str | None = None) -> None:
+    """Initialize a new Spellbook vault.
+
+    Args:
+        vault_path: Path where the vault will be created
+        name: Name of the vault directory
+        knowledge_url: Optional git URL to clone as the knowledge/ directory
+    """
     console.print(f"\n[bold]Spellbook v{__version__}[/bold]\n")
 
     if (vault_path / SPELLBOOK_MARKER).exists():
@@ -71,12 +77,44 @@ def init_vault(vault_path: Path, name: str) -> None:
     console.print(f"Vault path: [cyan]{vault_path}[/cyan]")
     console.print("Creating structure...")
 
-    # Create directories
+    # Create vault root directory
     vault_path.mkdir(parents=True, exist_ok=True)
+
+    # Handle knowledge directory - clone from URL or create empty structure
+    if knowledge_url:
+        console.print(f"Cloning knowledge repo from [cyan]{knowledge_url}[/cyan]...")
+        knowledge_path = vault_path / "knowledge"
+        result = subprocess.run(
+            ["git", "clone", knowledge_url, str(knowledge_path)],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            # Clean up on failure
+            if vault_path.exists():
+                shutil.rmtree(vault_path)
+            console.print("[red]Error:[/red] Failed to clone knowledge repository")
+            console.print(f"[red]{result.stderr.strip()}[/red]")
+            raise SystemExit(1)
+        console.print("  [green]\u2713[/green] knowledge/ (cloned)")
+
+        # Ensure subdirectories exist in cloned repo
+        for subdir in ["docs", "log", "buffer"]:
+            subdir_path = knowledge_path / subdir
+            subdir_path.mkdir(parents=True, exist_ok=True)
+    else:
+        # Create empty knowledge structure
+        for dir_path in ["knowledge/docs", "knowledge/log", "knowledge/buffer"]:
+            full_path = vault_path / dir_path
+            full_path.mkdir(parents=True, exist_ok=True)
+            console.print(f"  [green]\u2713[/green] {dir_path}/")
+
+    # Create other directories (repos/)
     for dir_path in VAULT_DIRS:
-        full_path = vault_path / dir_path
-        full_path.mkdir(parents=True, exist_ok=True)
-        console.print(f"  [green]\u2713[/green] {dir_path}/")
+        if not dir_path.startswith("knowledge/"):
+            full_path = vault_path / dir_path
+            full_path.mkdir(parents=True, exist_ok=True)
+            console.print(f"  [green]\u2713[/green] {dir_path}/")
 
     # Copy .claude/ directory from assets
     assets_path = get_assets_path()
@@ -215,8 +253,16 @@ def update_vault(vault_path: Path, fetch: bool = True) -> None:
     # Report preserved files
     console.print("\nPreserved:")
     knowledge_path = vault_path / "knowledge"
-    log_count = len(list((knowledge_path / "log").rglob("*.md"))) if (knowledge_path / "log").exists() else 0
-    buffer_count = len(list((knowledge_path / "buffer").glob("*.txt"))) if (knowledge_path / "buffer").exists() else 0
+    log_count = (
+        len(list((knowledge_path / "log").rglob("*.md")))
+        if (knowledge_path / "log").exists()
+        else 0
+    )
+    buffer_count = (
+        len(list((knowledge_path / "buffer").glob("*.txt")))
+        if (knowledge_path / "buffer").exists()
+        else 0
+    )
     console.print(f"  - knowledge/log/ ({log_count} docs)")
     console.print(f"  - knowledge/buffer/ ({buffer_count} pending)")
     if (knowledge_path / "index.db").exists():
@@ -335,8 +381,19 @@ Spellbook vault v{__version__}
 
 
 def _create_knowledge_gitignore(vault_path: Path) -> None:
-    """Create knowledge/.gitignore with index.db entry."""
+    """Create or update knowledge/.gitignore with index.db entry."""
     knowledge_path = vault_path / "knowledge"
     knowledge_path.mkdir(parents=True, exist_ok=True)
     gitignore_path = knowledge_path / ".gitignore"
-    gitignore_path.write_text("index.db\n")
+
+    # If .gitignore exists, ensure index.db is in it
+    if gitignore_path.exists():
+        content = gitignore_path.read_text()
+        if "index.db" not in content:
+            # Append index.db to existing .gitignore
+            if not content.endswith("\n"):
+                content += "\n"
+            content += "index.db\n"
+            gitignore_path.write_text(content)
+    else:
+        gitignore_path.write_text("index.db\n")
